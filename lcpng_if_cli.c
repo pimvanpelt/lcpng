@@ -105,8 +105,8 @@ lcp_itf_pair_create_command_fn (vlib_main_t *vm, unformat_input_t *input,
 }
 
 VLIB_CLI_COMMAND (lcp_itf_pair_create_command, static) = {
-  .path = "lcp create",
-  .short_help = "lcp create <sw_if_index>|<if-name> host-if <host-if-name> "
+  .path = "lcpng create",
+  .short_help = "lcpng create <sw_if_index>|<if-name> host-if <host-if-name> "
 		"netns <namespace> [tun]",
   .function = lcp_itf_pair_create_command_fn,
 };
@@ -145,8 +145,8 @@ lcp_default_netns_command_fn (vlib_main_t *vm, unformat_input_t *input,
 }
 
 VLIB_CLI_COMMAND (lcp_default_netns_command, static) = {
-  .path = "lcp default",
-  .short_help = "lcp default netns [<namespace>]",
+  .path = "lcpng default",
+  .short_help = "lcpng default netns [<namespace>]",
   .function = lcp_default_netns_command_fn,
 };
 
@@ -189,8 +189,8 @@ lcp_itf_pair_delete_command_fn (vlib_main_t *vm, unformat_input_t *input,
 }
 
 VLIB_CLI_COMMAND (lcp_itf_pair_delete_command, static) = {
-  .path = "lcp delete",
-  .short_help = "lcp delete <sw_if_index>|<if-name>",
+  .path = "lcpng delete",
+  .short_help = "lcpng delete <sw_if_index>|<if-name>",
   .function = lcp_itf_pair_delete_command_fn,
 };
 
@@ -219,9 +219,9 @@ lcp_itf_pair_show_cmd (vlib_main_t *vm, unformat_input_t *input,
 }
 
 VLIB_CLI_COMMAND (lcp_itf_pair_show_cmd_node, static) = {
-  .path = "show lcp",
+  .path = "show lcpng",
   .function = lcp_itf_pair_show_cmd,
-  .short_help = "show lcp [phy <interface>]",
+  .short_help = "show lcpng [phy <interface>]",
   .is_mp_safe = 1,
 };
 

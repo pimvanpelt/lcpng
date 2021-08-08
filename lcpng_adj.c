@@ -192,9 +192,9 @@ lcp_adj_show_cmd (vlib_main_t *vm, unformat_input_t *input,
 }
 
 VLIB_CLI_COMMAND (lcp_itf_pair_show_cmd_node, static) = {
-  .path = "show lcp adj",
+  .path = "show lcpng adj",
   .function = lcp_adj_show_cmd,
-  .short_help = "show lcp adj",
+  .short_help = "show lcpng adj",
   .is_mp_safe = 1,
 };
 
