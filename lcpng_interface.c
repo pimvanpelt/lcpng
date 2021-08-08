@@ -871,7 +871,7 @@ lcp_itf_phy_add (vnet_main_t *vnm, u32 sw_if_index, u32 is_create)
 		     is_sub);
   if (is_sub) {
     vnet_sw_interface_t *si;
-    si = vnet_get_sw_interface (vnm, sw_if_index);
+    si = vnet_get_sw_interface_or_null (vnm, sw_if_index);
     LCP_ITF_PAIR_INFO ("phy_%s: si:%U parent:%U", is_create?"add":"del",
 		     format_vnet_sw_if_index_name, vnet_get_main (), si->sw_if_index,
 		     format_vnet_sw_if_index_name, vnet_get_main (), si->sup_sw_if_index
