@@ -782,7 +782,7 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
        * users can set the interfaces at runtime (set interface mtu packet ...)
        * ensure that the tap MTU is large enough.
        */
-      vnet_sw_interface_set_mtu (vnm, args.sw_if_index, 9216);
+      vnet_sw_interface_set_mtu (vnm, args.sw_if_index, ETHERNET_MAX_PACKET_BYTES);
 
       /*
        * get the hw and ethernet of the tap
