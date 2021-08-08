@@ -133,8 +133,8 @@ lcp_itf_pair_show (u32 phy_sw_if_index)
   index_t api;
 
   vm = vlib_get_main ();
-  ns = lcp_get_default_ns ();
-  vlib_cli_output (vm, "lcp default netns '%s'\n",
+  ns = lcp_get_netns ();
+  vlib_cli_output (vm, "lcpng netns '%s'\n",
 		   ns ? (char *) ns : "<unset>");
 
   if (phy_sw_if_index == ~0)
@@ -516,9 +516,9 @@ lcp_itf_pair_config (vlib_main_t *vm, unformat_input_t *input)
 {
   u8 *host, *phy;
   u8 *ns;
-  u8 *default_ns;
+  u8 *netns;
 
-  host = phy = ns = default_ns = NULL;
+  host = phy = ns = netns = NULL;
 
   while (unformat_check_input (input) != UNFORMAT_END_OF_INPUT)
     {
@@ -552,14 +552,13 @@ lcp_itf_pair_config (vlib_main_t *vm, unformat_input_t *input)
 	  lipn->lipn_phy_name = vec_dup (phy);
 	  lipn->lipn_namespace = 0;
 	}
-      else if (unformat (input, "default netns %v", &default_ns))
+      else if (unformat (input, "netns %v", &netns))
 	{
-	  vec_add1 (default_ns, 0);
-	  if (lcp_set_default_ns (default_ns) < 0)
+	  vec_add1 (netns, 0);
+	  if (lcp_set_netns (netns) < 0)
 	    {
 	      return clib_error_return (0,
-					"lcpng default namespace must"
-					" be less than %d characters",
+					"lcpng namespace must be less than %d characters",
 					LCP_NS_LEN);
 	    }
 	}
@@ -569,7 +568,7 @@ lcp_itf_pair_config (vlib_main_t *vm, unformat_input_t *input)
 
   vec_free (host);
   vec_free (phy);
-  vec_free (default_ns);
+  vec_free (netns);
 
   return NULL;
 }
@@ -663,11 +662,10 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
 
   /*
    * Use interface-specific netns if supplied.
-   * Otherwise, use default netns if defined.
-   * Otherwise ignore a netns and use the OS default.
+   * Otherwise, use netns if defined, otherwise use the OS default.
    */
   if (ns == 0 || ns[0] == 0)
-    ns = lcp_get_default_ns ();
+    ns = lcp_get_netns ();
 
   /* sub interfaces do not need a tap created */
   if (vnet_sw_interface_is_sub (vnm, phy_sw_if_index))

@@ -22,8 +22,8 @@
 typedef struct lcp_main_s
 {
   u16 msg_id_base;		    /* API message ID base */
-  u8 default_namespace[LCP_NS_LEN]; /* default namespace if set */
-  int default_ns_fd;
+  u8 netns_name[LCP_NS_LEN];        /* namespace, if set */
+  int netns_fd;
   /* Set when Unit testing */
   u8 test_mode;
 } lcp_main_t;
@@ -31,11 +31,11 @@ typedef struct lcp_main_s
 extern lcp_main_t lcp_main;
 
 /**
- * Get/Set the default namespace for LCP host taps.
+ * Get/Set the namespace in which to create LCP host taps.
  */
-int lcp_set_default_ns (u8 *ns);
-u8 *lcp_get_default_ns (void); /* Returns NULL or shared string */
-int lcp_get_default_ns_fd (void);
+int lcp_set_netns (u8 *ns);
+u8 *lcp_get_netns (void); /* Returns NULL or shared string */
+int lcp_get_netns_fd (void);
 
 #endif
 

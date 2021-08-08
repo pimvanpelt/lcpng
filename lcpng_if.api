@@ -21,34 +21,34 @@ option version = "1.0.0";
 
 import "vnet/interface_types.api";
 
-/** \brief Set the default Linux Control Plane namespace
+/** \brief Set the namespace for Linux Control Plane host taps
     @param client_index - opaque cookie to identify the sender
     @param context - sender context, to match reply w/ request
-    @param namespace - the new default namespace; namespace[0] == 0 iff none
+    @param namespace - the new namespace; namespace[0] == 0 iff none
 */
-autoreply define lcp_default_ns_set
+autoreply define lcp_netns_set
 {
   u32 client_index;
   u32 context;
   string namespace[32];		/* LCP_NS_LEN */
 };
 
-/** \brief get the default Linux Control Plane namespace
+/** \brief get the Linux Control Plane namespace
     @param client_index - opaque cookie to identify the sender
     @param context - sender context, to match reply w/ request
 */
-define lcp_default_ns_get
+define lcp_netns_get
 {
   u32 client_index;
   u32 context;
 };
 
-/** \brief get the default Linux Control Plane namespace
+/** \brief get the Linux Control Plane namespace
     @param client_index - opaque cookie to identify the sender
     @param context - sender context, to match reply w/ request
-    @param namespace - the default namespace; namespace[0] == 0 iff none
+    @param namespace - the namespace; namespace[0] == 0 iff none
 */
-define lcp_default_ns_get_reply
+define lcp_netns_get_reply
 {
   u32 context;
   string namespace[32];		/* LCP_NS_LEN */

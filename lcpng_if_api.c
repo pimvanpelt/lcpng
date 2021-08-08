@@ -169,22 +169,22 @@ vl_api_lcp_itf_pair_get_t_handler (vl_api_lcp_itf_pair_get_t *mp)
 }
 
 static void
-vl_api_lcp_default_ns_set_t_handler (vl_api_lcp_default_ns_set_t *mp)
+vl_api_lcp_netns_set_t_handler (vl_api_lcp_netns_set_t *mp)
 {
-  vl_api_lcp_default_ns_set_reply_t *rmp;
+  vl_api_lcp_netns_set_reply_t *rmp;
   int rv;
 
   mp->namespace[LCP_NS_LEN - 1] = 0;
-  rv = lcp_set_default_ns (mp->namespace);
+  rv = lcp_set_netns (mp->namespace);
 
-  REPLY_MACRO (VL_API_LCP_DEFAULT_NS_SET_REPLY);
+  REPLY_MACRO (VL_API_LCP_NETNS_SET_REPLY);
 }
 
 static void
-vl_api_lcp_default_ns_get_t_handler (vl_api_lcp_default_ns_get_t *mp)
+vl_api_lcp_netns_get_t_handler (vl_api_lcp_netns_get_t *mp)
 {
   lcp_main_t *lcpm = &lcp_main;
-  vl_api_lcp_default_ns_get_reply_t *rmp;
+  vl_api_lcp_netns_get_reply_t *rmp;
   vl_api_registration_t *reg;
   char *ns;
 
@@ -194,10 +194,10 @@ vl_api_lcp_default_ns_get_t_handler (vl_api_lcp_default_ns_get_t *mp)
 
   rmp = vl_msg_api_alloc (sizeof (*rmp));
   clib_memset (rmp, 0, sizeof (*rmp));
-  rmp->_vl_msg_id = (VL_API_LCP_DEFAULT_NS_GET_REPLY + lcpm->msg_id_base);
+  rmp->_vl_msg_id = (VL_API_LCP_NETNS_GET_REPLY + lcpm->msg_id_base);
   rmp->context = mp->context;
 
-  ns = (char *) lcp_get_default_ns ();
+  ns = (char *) lcp_get_netns ();
   if (ns)
     clib_strncpy ((char *) rmp->namespace, ns, LCP_NS_LEN - 1);
 

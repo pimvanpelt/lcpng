@@ -112,45 +112,6 @@ VLIB_CLI_COMMAND (lcp_itf_pair_create_command, static) = {
 };
 
 static clib_error_t *
-lcp_default_netns_command_fn (vlib_main_t *vm, unformat_input_t *input,
-			      vlib_cli_command_t *cmd)
-{
-  unformat_input_t _line_input, *line_input = &_line_input;
-  u8 *ns;
-  int r;
-
-  if (!unformat_user (input, unformat_line_input, line_input))
-    return 0;
-
-  ns = 0;
-
-  while (unformat_check_input (line_input) != UNFORMAT_END_OF_INPUT)
-    {
-      if (unformat (line_input, "netns %s", &ns))
-	;
-      else if (unformat (line_input, "clear netns"))
-	;
-    }
-
-  unformat_free (line_input);
-
-  vlib_cli_output (vm, "lcp set default netns '%s'\n", (char *) ns);
-
-  r = lcp_set_default_ns (ns);
-
-  if (r)
-    return clib_error_return (0, "lcnpg set default netns failed (%d)", r);
-
-  return 0;
-}
-
-VLIB_CLI_COMMAND (lcp_default_netns_command, static) = {
-  .path = "lcpng default",
-  .short_help = "lcpng default netns [<namespace>]",
-  .function = lcp_default_netns_command_fn,
-};
-
-static clib_error_t *
 lcp_itf_pair_delete_command_fn (vlib_main_t *vm, unformat_input_t *input,
 				vlib_cli_command_t *cmd)
 {
