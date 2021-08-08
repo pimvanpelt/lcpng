@@ -776,6 +776,15 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
 	}
 
       /*
+       * The TAP interface does copy forward the host MTU based on the VPP
+       * interface's L3 MTU, but it should also ensure that the VPP tap
+       * interface has an MTU that is greater-or-equal to those. Considering
+       * users can set the interfaces at runtime (set interface mtu packet ...)
+       * ensure that the tap MTU is large enough.
+       */
+      vnet_sw_interface_set_mtu (vnm, args.sw_if_index, 9216);
+
+      /*
        * get the hw and ethernet of the tap
        */
       hw = vnet_get_sup_hw_interface (vnm, args.sw_if_index);
