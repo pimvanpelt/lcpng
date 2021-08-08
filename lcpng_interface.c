@@ -887,7 +887,7 @@ lcp_itf_pair_replace_end (void)
 }
 
 static uword
-lcp_itf_pair_process (vlib_main_t *vm, vlib_node_runtime_t *rt,
+lcp_if_process (vlib_main_t *vm, vlib_node_runtime_t *rt,
 		      vlib_frame_t *f)
 {
   uword *event_data = 0;
@@ -915,9 +915,9 @@ lcp_itf_pair_process (vlib_main_t *vm, vlib_node_runtime_t *rt,
   return 0;
 }
 
-VLIB_REGISTER_NODE (lcp_itf_pair_process_node, static) = {
-  .function = lcp_itf_pair_process,
-  .name = "lcpng-itf-process",
+VLIB_REGISTER_NODE (lcp_if_process_node, static) = {
+  .function = lcp_if_process,
+  .name = "lcpng-if-process",
   .type = VLIB_NODE_TYPE_PROCESS,
 };
 
@@ -939,7 +939,7 @@ lcp_itf_phy_add (vnet_main_t *vnm, u32 sw_if_index, u32 is_create)
 	{
 	  lipn->lipn_phy_sw_if_index = sw_if_index;
 
-	  vlib_process_signal_event (vm, lcp_itf_pair_process_node.index, 0,
+	  vlib_process_signal_event (vm, lcp_if_process_node.index, 0,
 				     lipn - lipn_names);
 	  break;
 	}
