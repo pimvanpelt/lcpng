@@ -780,9 +780,13 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
        * interface's L3 MTU, but it should also ensure that the VPP tap
        * interface has an MTU that is greater-or-equal to those. Considering
        * users can set the interfaces at runtime (set interface mtu packet ...)
-       * ensure that the tap MTU is large enough.
+       * ensure that the tap MTU is large enough, taking the VPP interface L3
+       * if it's set, and otherwise a sensible default.
        */
-      vnet_sw_interface_set_mtu (vnm, args.sw_if_index, ETHERNET_MAX_PACKET_BYTES);
+      if (sw->mtu[VNET_MTU_L3])
+        vnet_sw_interface_set_mtu (vnm, args.sw_if_index, sw->mtu[VNET_MTU_L3]);
+      else
+        vnet_sw_interface_set_mtu (vnm, args.sw_if_index, ETHERNET_MAX_PACKET_BYTES);
 
       /*
        * get the hw and ethernet of the tap
