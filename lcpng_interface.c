@@ -501,58 +501,18 @@ lcp_itf_pair_walk (lcp_itf_pair_walk_cb_t cb, void *ctx)
     };
 }
 
-typedef struct lcp_itf_pair_names_t_
-{
-  u8 *lipn_host_name;
-  u8 *lipn_phy_name;
-  u8 *lipn_namespace;
-  u32 lipn_phy_sw_if_index;
-} lcp_itf_pair_names_t;
-
-static lcp_itf_pair_names_t *lipn_names;
-
 static clib_error_t *
 lcp_itf_pair_config (vlib_main_t *vm, unformat_input_t *input)
 {
-  u8 *host, *phy;
+  u8 *phy;
   u8 *ns;
   u8 *netns;
 
-  host = phy = ns = netns = NULL;
+  phy = ns = netns = NULL;
 
   while (unformat_check_input (input) != UNFORMAT_END_OF_INPUT)
     {
-      vec_reset_length (host);
-
-      if (unformat (input, "pair %s %s %s", &phy, &host, &ns))
-	{
-	  lcp_itf_pair_names_t *lipn;
-
-	  if (vec_len (ns) > LCP_NS_LEN)
-	    {
-	      return clib_error_return (0,
-					"lcpng IF namespace must"
-					" be less than %d characters",
-					LCP_NS_LEN);
-	    }
-
-	  vec_add2 (lipn_names, lipn, 1);
-
-	  lipn->lipn_host_name = vec_dup (host);
-	  lipn->lipn_phy_name = vec_dup (phy);
-	  lipn->lipn_namespace = vec_dup (ns);
-	}
-      else if (unformat (input, "pair %v %v", &phy, &host))
-	{
-	  lcp_itf_pair_names_t *lipn;
-
-	  vec_add2 (lipn_names, lipn, 1);
-
-	  lipn->lipn_host_name = vec_dup (host);
-	  lipn->lipn_phy_name = vec_dup (phy);
-	  lipn->lipn_namespace = 0;
-	}
-      else if (unformat (input, "netns %v", &netns))
+      if (unformat (input, "netns %v", &netns))
 	{
 	  vec_add1 (netns, 0);
 	  if (lcp_set_netns (netns) < 0)
@@ -566,7 +526,6 @@ lcp_itf_pair_config (vlib_main_t *vm, unformat_input_t *input)
 	return clib_error_return (0, "interfaces not found");
     }
 
-  vec_free (host);
   vec_free (phy);
   vec_free (netns);
 
@@ -899,64 +858,19 @@ lcp_itf_pair_replace_end (void)
   return (0);
 }
 
-static uword
-lcp_if_process (vlib_main_t *vm, vlib_node_runtime_t *rt,
-		      vlib_frame_t *f)
-{
-  uword *event_data = 0;
-  uword *lipn_index;
-
-  while (1)
-    {
-      vlib_process_wait_for_event (vm);
-
-      vlib_process_get_events (vm, &event_data);
-
-      vec_foreach (lipn_index, event_data)
-	{
-	  lcp_itf_pair_names_t *lipn;
-
-	  lipn = &lipn_names[*lipn_index];
-	  lcp_itf_pair_create (lipn->lipn_phy_sw_if_index,
-			       lipn->lipn_host_name, LCP_ITF_HOST_TAP,
-			       lipn->lipn_namespace, NULL);
-	}
-
-      vec_reset_length (event_data);
-    }
-
-  return 0;
-}
-
-VLIB_REGISTER_NODE (lcp_if_process_node, static) = {
-  .function = lcp_if_process,
-  .name = "lcpng-if-process",
-  .type = VLIB_NODE_TYPE_PROCESS,
-};
-
 static clib_error_t *
 lcp_itf_phy_add (vnet_main_t *vnm, u32 sw_if_index, u32 is_create)
 {
-  lcp_itf_pair_names_t *lipn;
-  vlib_main_t *vm = vlib_get_main ();
   vnet_hw_interface_t *hw;
+  uword is_sub;
 
-  if (!is_create || vnet_sw_interface_is_sub (vnm, sw_if_index))
-    return NULL;
-
+  is_sub = vnet_sw_interface_is_sub (vnm, sw_if_index);
   hw = vnet_get_sup_hw_interface (vnm, sw_if_index);
 
-  vec_foreach (lipn, lipn_names)
-    {
-      if (!vec_cmp (hw->name, lipn->lipn_phy_name))
-	{
-	  lipn->lipn_phy_sw_if_index = sw_if_index;
-
-	  vlib_process_signal_event (vm, lcp_if_process_node.index, 0,
-				     lipn - lipn_names);
-	  break;
-	}
-    }
+  LCP_ITF_PAIR_INFO ("phy_add: phy:%U hw:%U is_sub:%u is_create:%u",
+		     format_vnet_sw_if_index_name, vnet_get_main (), sw_if_index,
+		     format_vnet_sw_if_index_name, vnet_get_main (), hw->sw_if_index,
+		     is_sub, is_create);
 
   return NULL;
 }
