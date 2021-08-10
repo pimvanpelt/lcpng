@@ -78,6 +78,9 @@ lcp_itf_pair_register_vft (lcp_itf_pair_vft_t *lcp_itf_vft)
 #define LCP_ITF_PAIR_INFO(...)                                                \
   vlib_log_notice (lcp_itf_pair_logger, __VA_ARGS__);
 
+#define LCP_ITF_PAIR_ERR(...)                                                \
+  vlib_log_err (lcp_itf_pair_logger, __VA_ARGS__);
+
 u8 *
 format_lcp_itf_pair (u8 *s, va_list *args)
 {
@@ -609,11 +612,15 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
   const vnet_sw_interface_t *sw;
   const vnet_hw_interface_t *hw;
 
-  if (!vnet_sw_if_index_is_api_valid (phy_sw_if_index))
+  if (!vnet_sw_if_index_is_api_valid (phy_sw_if_index)) {
+    LCP_ITF_PAIR_ERR ("pair_create: invalid phy index %u", phy_sw_if_index);
     return VNET_API_ERROR_INVALID_SW_IF_INDEX;
+  }
 
-  if (!lcp_validate_if_name (host_if_name))
+  if (!lcp_validate_if_name (host_if_name)) {
+    LCP_ITF_PAIR_ERR ("pair_create: invalid host-if-name '%s'", host_if_name);
     return VNET_API_ERROR_INVALID_ARGUMENT;
+  }
 
   vnm = vnet_get_main ();
   sw = vnet_get_sw_interface (vnm, phy_sw_if_index);
@@ -632,13 +639,16 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
       const lcp_itf_pair_t *lip;
       int orig_ns_fd, ns_fd;
       clib_error_t *err;
-      u16 vlan;
+      u16 outer_vlan, inner_vlan;
 
       /*
        * Find the parent tap by finding the pair from the parent phy
        */
       lip = lcp_itf_pair_get (lcp_itf_pair_find_by_phy (sw->sup_sw_if_index));
-      vlan = sw->sub.eth.outer_vlan_id;
+      outer_vlan = sw->sub.eth.outer_vlan_id;
+      inner_vlan = sw->sub.eth.inner_vlan_id;
+      LCP_ITF_PAIR_INFO ("pair_create: trying to create %d.%d on %U", outer_vlan, inner_vlan,
+			   format_vnet_sw_if_index_name, vnet_get_main (), hw->sw_if_index);
 
       /*
        * see if the requested host interface has already been created
@@ -663,12 +673,20 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
 	  /*
 	   * no existing host interface, create it now
 	   */
-	  err = lcp_netlink_add_link_vlan (lip->lip_vif_index, vlan,
+	  err = lcp_netlink_add_link_vlan (lip->lip_vif_index, outer_vlan,
 					   (const char *) host_if_name);
+	  if (err != 0) {
+	    LCP_ITF_PAIR_ERR ("pair_create: cannot create link outer.inner:%d.%d name:'%s' error: %s",
+			   outer_vlan, inner_vlan, host_if_name, strerror(errno));
+	  }
 
-	  if (!err && -1 != ns_fd)
+	  if (!err && -1 != ns_fd) {
 	    err = vnet_netlink_set_link_netns (vif_index, ns_fd, NULL);
-
+	    if (err != 0) {
+	      LCP_ITF_PAIR_ERR ("pair_create: cannot set link name:'%s' in namespace:'%s', error: %s",
+	                        host_if_name, ns, strerror(errno));
+	    }
+	  }
 	  if (!err)
 	    vif_index = if_nametoindex ((char *) host_if_name);
 	}
@@ -678,9 +696,9 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
        */
       if (!err && vnet_create_sub_interface (lip->lip_host_sw_if_index,
 					     sw->sub.id, sw->sub.eth.raw_flags,
-					     sw->sub.eth.inner_vlan_id, vlan,
+					     inner_vlan, outer_vlan,
 					     &host_sw_if_index))
-	LCP_ITF_PAIR_INFO ("failed create vlan: %d on %U", vlan,
+	LCP_ITF_PAIR_ERR ("pair_create: failed to create tap subint: %d.%d on %U", outer_vlan, inner_vlan,
 			   format_vnet_sw_if_index_name, vnet_get_main (),
 			   lip->lip_host_sw_if_index);
 
@@ -731,6 +749,7 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
 
       if (args.rv < 0)
 	{
+          LCP_ITF_PAIR_ERR ("pair_create: could not create tap: retval:%d", args.rv);
 	  return args.rv;
 	}
 
@@ -791,10 +810,10 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
   lcp_itf_pair_add (host_sw_if_index, phy_sw_if_index, host_if_name, vif_index,
 		    host_if_type, ns);
 
-  LCP_ITF_PAIR_INFO ("pair create: {%U, %U, %s}", format_vnet_sw_if_index_name,
-		     vnet_get_main (), phy_sw_if_index,
-		     format_vnet_sw_if_index_name, vnet_get_main (),
-		     host_sw_if_index, host_if_name);
+  LCP_ITF_PAIR_INFO ("pair create: {%U, %U, %s}",
+		     format_vnet_sw_if_index_name, vnet_get_main (), phy_sw_if_index,
+		     format_vnet_sw_if_index_name, vnet_get_main (), host_sw_if_index,
+		     host_if_name);
 
   if (host_sw_if_indexp)
     *host_sw_if_indexp = host_sw_if_index;
