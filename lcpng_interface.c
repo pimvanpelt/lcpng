@@ -21,6 +21,7 @@
 
 #include <lcpng/lcpng_interface.h>
 #include <netlink/route/link/vlan.h>
+#include <linux/if_ether.h>
 
 #include <vnet/plugin/plugin.h>
 #include <vnet/plugin/plugin.h>
@@ -339,25 +340,37 @@ lcp_itf_pair_add (u32 host_sw_if_index, u32 phy_sw_if_index, u8 *host_name,
 }
 
 static clib_error_t *
-lcp_netlink_add_link_vlan (int parent, u32 vlan, const char *name)
+lcp_netlink_add_link_vlan (int parent, u32 vlan, u16 proto, const char *name)
 {
   struct rtnl_link *link;
   struct nl_sock *sk;
   int err;
 
   sk = nl_socket_alloc ();
-  if ((err = nl_connect (sk, NETLINK_ROUTE)) < 0)
+  if ((err = nl_connect (sk, NETLINK_ROUTE)) < 0) {
+    LCP_ITF_PAIR_ERR ("netlink_add_link_vlan: connect error: %s", nl_geterror(err));
     return clib_error_return (NULL, "Unable to connect socket: %d", err);
+  }
 
   link = rtnl_link_vlan_alloc ();
 
   rtnl_link_set_link (link, parent);
   rtnl_link_set_name (link, name);
 
-  rtnl_link_vlan_set_id (link, vlan);
+  if ((err = rtnl_link_vlan_set_id (link, vlan)) < 0) {
+    LCP_ITF_PAIR_ERR ("netlink_add_link_vlan: vlan set error: %s", nl_geterror(err));
+    return clib_error_return (NULL, "Unable to set VLAN %d on link %s: %d", vlan, name, err);
+  }
 
-  if ((err = rtnl_link_add (sk, link, NLM_F_CREATE)) < 0)
+  if ((err = rtnl_link_vlan_set_protocol (link, htons(proto))) < 0) {
+    LCP_ITF_PAIR_ERR ("netlink_add_link_vlan: proto set error: %s", nl_geterror(err));
+    return clib_error_return (NULL, "Unable to set proto %d on link %s: %d", proto, name, err);
+  }
+
+  if ((err = rtnl_link_add (sk, link, NLM_F_CREATE)) < 0) {
+    LCP_ITF_PAIR_ERR ("netlink_add_link_vlan: link add error: %s", nl_geterror(err));
     return clib_error_return (NULL, "Unable to add link %s: %d", name, err);
+  }
 
   rtnl_link_put (link);
   nl_close (sk);
@@ -640,6 +653,7 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
       int orig_ns_fd, ns_fd;
       clib_error_t *err;
       u16 outer_vlan, inner_vlan;
+      u16 outer_proto, inner_proto;
 
       /*
        * Find the parent tap by finding the pair from the parent phy
@@ -647,6 +661,8 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
       lip = lcp_itf_pair_get (lcp_itf_pair_find_by_phy (sw->sup_sw_if_index));
       outer_vlan = sw->sub.eth.outer_vlan_id;
       inner_vlan = sw->sub.eth.inner_vlan_id;
+      outer_proto = inner_proto = ETH_P_8021Q;
+      if (1 == sw->sub.eth.flags.dot1ad) outer_proto = ETH_P_8021AD;
       LCP_ITF_PAIR_INFO ("pair_create: trying to create %d.%d on %U", outer_vlan, inner_vlan,
 			   format_vnet_sw_if_index_name, vnet_get_main (), hw->sw_if_index);
 
@@ -673,18 +689,18 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
 	  /*
 	   * no existing host interface, create it now
 	   */
-	  err = lcp_netlink_add_link_vlan (lip->lip_vif_index, outer_vlan,
+	  err = lcp_netlink_add_link_vlan (lip->lip_vif_index, outer_vlan, outer_proto,
 					   (const char *) host_if_name);
 	  if (err != 0) {
-	    LCP_ITF_PAIR_ERR ("pair_create: cannot create link outer.inner:%d.%d name:'%s' error: %s",
-			   outer_vlan, inner_vlan, host_if_name, strerror(errno));
+	    LCP_ITF_PAIR_ERR ("pair_create: cannot create link outer(proto:0x%04x,vlan:%u).inner(proto:0x%04x,vlan:%u) name:'%s'",
+			   outer_proto, outer_vlan, inner_proto, inner_vlan, host_if_name);
 	  }
 
 	  if (!err && -1 != ns_fd) {
 	    err = vnet_netlink_set_link_netns (vif_index, ns_fd, NULL);
 	    if (err != 0) {
-	      LCP_ITF_PAIR_ERR ("pair_create: cannot set link name:'%s' in namespace:'%s', error: %s",
-	                        host_if_name, ns, strerror(errno));
+	      LCP_ITF_PAIR_ERR ("pair_create: cannot set link name:'%s' in namespace:'%s'",
+	                        host_if_name, ns);
 	    }
 	  }
 	  if (!err)
