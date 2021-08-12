@@ -793,13 +793,13 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
       hw = vnet_get_sup_hw_interface (vnm, args.sw_if_index);
 
       /*
-       * Set the interface down on the host side.
+       * Copy the link state from VPP inon the host side.
        * This controls whether the host can RX/TX.
        */
       virtio_main_t *mm = &virtio_main;
       virtio_if_t *vif = pool_elt_at_index (mm->interfaces, hw->dev_instance);
 
-      lcp_itf_set_vif_link_state (vif->ifindex, 0 /* down */,
+      lcp_itf_set_vif_link_state (vif->ifindex, sw->flags & VNET_SW_INTERFACE_FLAG_ADMIN_UP,
 				  args.host_namespace);
 
       /*
