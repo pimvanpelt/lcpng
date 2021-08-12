@@ -655,6 +655,11 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
       u16 outer_vlan, inner_vlan;
       u16 outer_proto, inner_proto;
 
+      if (sw->type == VNET_SW_INTERFACE_TYPE_SUB && sw->sub.eth.flags.exact_match == 0) {
+        LCP_ITF_PAIR_ERR ("pair_create: can't create LCP for a sub-interface without exact-match set");
+        return VNET_API_ERROR_INVALID_ARGUMENT;
+      }
+
       /*
        * Find the parent tap by finding the pair from the parent phy
        */
