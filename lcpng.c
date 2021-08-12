@@ -23,9 +23,7 @@
 
 lcp_main_t lcp_main;
 
-u8 *
-lcp_get_default_ns (void)
-{
+u8 *lcp_get_default_ns(void) {
   lcp_main_t *lcpm = &lcp_main;
 
   if (lcpm->default_namespace[0] == 0)
@@ -33,9 +31,7 @@ lcp_get_default_ns (void)
   return lcpm->default_namespace;
 }
 
-int
-lcp_get_default_ns_fd (void)
-{
+int lcp_get_default_ns_fd(void) {
   lcp_main_t *lcpm = &lcp_main;
 
   return lcpm->default_ns_fd;
@@ -44,9 +40,7 @@ lcp_get_default_ns_fd (void)
 /*
  * ns is expected to be or look like a NUL-terminated C string.
  */
-int
-lcp_set_default_ns (u8 *ns)
-{
+int lcp_set_default_ns(u8 *ns) {
   lcp_main_t *lcpm = &lcp_main;
   char *p;
   int len;
@@ -59,21 +53,20 @@ lcp_set_default_ns (u8 *ns)
 
   if (!p || *p == 0)
     {
-      clib_memset (lcpm->default_namespace, 0,
-		   sizeof (lcpm->default_namespace));
-      if (lcpm->default_ns_fd > 0)
-	close (lcpm->default_ns_fd);
-      lcpm->default_ns_fd = 0;
-      return 0;
+    clib_memset(lcpm->default_namespace, 0, sizeof(lcpm->default_namespace));
+    if (lcpm->default_ns_fd > 0)
+      close(lcpm->default_ns_fd);
+    lcpm->default_ns_fd = 0;
+    return 0;
     }
 
-  clib_strncpy ((char *) lcpm->default_namespace, p, LCP_NS_LEN - 1);
+    clib_strncpy((char *)lcpm->default_namespace, p, LCP_NS_LEN - 1);
 
-  s = format (0, "/var/run/netns/%s%c", (char *) lcpm->default_namespace, 0);
-  lcpm->default_ns_fd = open ((char *) s, O_RDONLY);
-  vec_free (s);
+    s = format(0, "/var/run/netns/%s%c", (char *)lcpm->default_namespace, 0);
+    lcpm->default_ns_fd = open((char *)s, O_RDONLY);
+    vec_free(s);
 
-  return 0;
+    return 0;
 }
 
 /*

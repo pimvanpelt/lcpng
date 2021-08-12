@@ -21,6 +21,18 @@
 
 #include <plugins/lcpng/lcpng.h>
 
+extern vlib_log_class_t lcp_itf_pair_logger;
+
+#define LCP_ITF_PAIR_DBG(...)                                                 \
+  vlib_log_notice (lcp_itf_pair_logger, __VA_ARGS__);
+
+#define LCP_ITF_PAIR_INFO(...)                                                \
+  vlib_log_notice (lcp_itf_pair_logger, __VA_ARGS__);
+
+#define LCP_ITF_PAIR_ERR(...)                                                \
+  vlib_log_err (lcp_itf_pair_logger, __VA_ARGS__);
+
+
 #define foreach_lcp_itf_pair_flag _ (STALE, 0, "stale")
 
 typedef enum lip_flag_t_
@@ -154,6 +166,10 @@ typedef struct lcp_itf_pair_vft
 } lcp_itf_pair_vft_t;
 
 void lcp_itf_pair_register_vft (lcp_itf_pair_vft_t *lcp_itf_vft);
+
+/* Set TAP and Linux host link state */
+void lcp_itf_set_link_state (const lcp_itf_pair_t *lip, u8 state);
+
 /*
  * fd.io coding-style-patch-verification: ON
  *

@@ -99,55 +99,53 @@ lcp_itf_pair_create_command_fn (vlib_main_t *vm, unformat_input_t *input,
   vec_free (ns);
 
   if (r)
-    return clib_error_return (0, "lcp pair creation failed (%d)", r);
+    return clib_error_return(0, "lcp pair creation failed (%d)", r);
 
   return 0;
 }
 
-VLIB_CLI_COMMAND (lcp_itf_pair_create_command, static) = {
-  .path = "lcp create",
-  .short_help = "lcp create <sw_if_index>|<if-name> host-if <host-if-name> "
-		"netns <namespace> [tun]",
-  .function = lcp_itf_pair_create_command_fn,
+VLIB_CLI_COMMAND(lcp_itf_pair_create_command, static) = {
+    .path = "lcp create",
+    .short_help = "lcp create <sw_if_index>|<if-name> host-if <host-if-name> "
+                  "netns <namespace> [tun]",
+    .function = lcp_itf_pair_create_command_fn,
 };
 
-static clib_error_t *
-lcp_default_netns_command_fn (vlib_main_t *vm, unformat_input_t *input,
-                             vlib_cli_command_t *cmd)
-{
+static clib_error_t *lcp_default_netns_command_fn(vlib_main_t *vm,
+                                                  unformat_input_t *input,
+                                                  vlib_cli_command_t *cmd) {
   unformat_input_t _line_input, *line_input = &_line_input;
   u8 *ns;
   int r;
 
-  if (!unformat_user (input, unformat_line_input, line_input))
+  if (!unformat_user(input, unformat_line_input, line_input))
     return 0;
 
   ns = 0;
 
-  while (unformat_check_input (line_input) != UNFORMAT_END_OF_INPUT)
-    {
-      if (unformat (line_input, "netns %s", &ns))
-	;
-      else if (unformat (line_input, "clear netns"))
-	;
-    }
+  while (unformat_check_input(line_input) != UNFORMAT_END_OF_INPUT) {
+    if (unformat(line_input, "netns %s", &ns))
+      ;
+    else if (unformat(line_input, "clear netns"))
+      ;
+  }
 
-  unformat_free (line_input);
+  unformat_free(line_input);
 
-  vlib_cli_output (vm, "lcp set default netns '%s'\n", (char *) ns);
+  vlib_cli_output(vm, "lcp set default netns '%s'\n", (char *)ns);
 
-  r = lcp_set_default_ns (ns);
+  r = lcp_set_default_ns(ns);
 
   if (r)
-    return clib_error_return (0, "linux-cp set default netns failed (%d)", r);
+    return clib_error_return(0, "linux-cp set default netns failed (%d)", r);
 
   return 0;
 }
 
-VLIB_CLI_COMMAND (lcp_default_netns_command, static) = {
-  .path = "lcp default",
-  .short_help = "lcp default netns [<namespace>]",
-  .function = lcp_default_netns_command_fn,
+VLIB_CLI_COMMAND(lcp_default_netns_command, static) = {
+    .path = "lcp default",
+    .short_help = "lcp default netns [<namespace>]",
+    .function = lcp_default_netns_command_fn,
 };
 
 static clib_error_t *
@@ -184,14 +182,14 @@ lcp_itf_pair_delete_command_fn (vlib_main_t *vm, unformat_input_t *input,
   r = lcp_itf_pair_delete (sw_if_index);
 
   if (r)
-    return clib_error_return (0, "lcp pair deletion failed (%d)", r);
+    return clib_error_return(0, "lcp pair deletion failed (%d)", r);
   return 0;
 }
 
-VLIB_CLI_COMMAND (lcp_itf_pair_delete_command, static) = {
-  .path = "lcp delete",
-  .short_help = "lcp delete <sw_if_index>|<if-name>",
-  .function = lcp_itf_pair_delete_command_fn,
+VLIB_CLI_COMMAND(lcp_itf_pair_delete_command, static) = {
+    .path = "lcp delete",
+    .short_help = "lcp delete <sw_if_index>|<if-name>",
+    .function = lcp_itf_pair_delete_command_fn,
 };
 
 static clib_error_t *
@@ -218,11 +216,11 @@ lcp_itf_pair_show_cmd (vlib_main_t *vm, unformat_input_t *input,
   return 0;
 }
 
-VLIB_CLI_COMMAND (lcp_itf_pair_show_cmd_node, static) = {
-  .path = "show lcp",
-  .function = lcp_itf_pair_show_cmd,
-  .short_help = "show lcp [phy <interface>]",
-  .is_mp_safe = 1,
+VLIB_CLI_COMMAND(lcp_itf_pair_show_cmd_node, static) = {
+    .path = "show lcp",
+    .function = lcp_itf_pair_show_cmd,
+    .short_help = "show lcp [phy <interface>]",
+    .is_mp_safe = 1,
 };
 
 clib_error_t *

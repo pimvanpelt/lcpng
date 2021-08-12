@@ -44,6 +44,7 @@ add_vpp_plugin(lcpng_if
   lcpng_if_api.c
   lcpng_if_cli.c
   lcpng_if_node.c
+  lcpng_if_sync.c
 
   API_FILES
   lcpng_if.api

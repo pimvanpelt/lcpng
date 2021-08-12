@@ -33,9 +33,9 @@ extern lcp_main_t lcp_main;
 /**
  * Get/Set the default namespace for LCP host taps.
  */
-int lcp_set_default_ns (u8 *ns);
-u8 *lcp_get_default_ns (void); /* Returns NULL or shared string */
-int lcp_get_default_ns_fd (void);
+int lcp_set_default_ns(u8 *ns);
+u8 *lcp_get_default_ns(void); /* Returns NULL or shared string */
+int lcp_get_default_ns_fd(void);
 
 #endif
 
