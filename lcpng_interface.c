@@ -137,7 +137,7 @@ lcp_itf_pair_show (u32 phy_sw_if_index)
   index_t api;
 
   vm = vlib_get_main ();
-  ns = lcp_get_netns ();
+  ns = lcp_get_default_ns ();
   vlib_cli_output (vm, "lcpng netns '%s'\n",
 		   ns ? (char *) ns : "<unset>");
 
@@ -193,12 +193,12 @@ lcp_itf_pair_add_sub (u32 vif, u8 *host_if_name, u32 sub_sw_if_index,
 
 const char *lcp_itf_l3_feat_names[N_LCP_ITF_HOST][N_AF] = {
   [LCP_ITF_HOST_TAP] = {
-    [AF_IP4] = "lcpng-xc-ip4",
-    [AF_IP6] = "lcpng-xc-ip6",
+    [AF_IP4] = "linux-cp-xc-ip4",
+    [AF_IP6] = "linux-cp-xc-ip6",
   },
   [LCP_ITF_HOST_TUN] = {
-    [AF_IP4] = "lcpng-xc-l3-ip4",
-    [AF_IP6] = "lcpng-xc-l3-ip6",
+    [AF_IP4] = "linux-cp-xc-l3-ip4",
+    [AF_IP6] = "linux-cp-xc-l3-ip6",
   },
 };
 
@@ -318,16 +318,16 @@ lcp_itf_pair_add (u32 host_sw_if_index, u32 phy_sw_if_index, u8 *host_name,
   /* enable ARP feature node for broadcast interfaces */
   if (lip->lip_host_type != LCP_ITF_HOST_TUN)
     {
-      vnet_feature_enable_disable ("arp", "lcpng-arp-phy",
+      vnet_feature_enable_disable ("arp", "linux-cp-arp-phy",
 				   lip->lip_phy_sw_if_index, 1, NULL, 0);
-      vnet_feature_enable_disable ("arp", "lcpng-arp-host",
+      vnet_feature_enable_disable ("arp", "linux-cp-arp-host",
 				   lip->lip_host_sw_if_index, 1, NULL, 0);
     }
   else
     {
-      vnet_feature_enable_disable ("ip4-punt", "lcpng-punt-l3", 0, 1, NULL,
+      vnet_feature_enable_disable ("ip4-punt", "linux-cp-punt-l3", 0, 1, NULL,
 				   0);
-      vnet_feature_enable_disable ("ip6-punt", "lcpng-punt-l3", 0, 1, NULL,
+      vnet_feature_enable_disable ("ip6-punt", "linux-cp-punt-l3", 0, 1, NULL,
 				   0);
     }
 
@@ -448,16 +448,16 @@ lcp_itf_pair_del (u32 phy_sw_if_index)
   /* disable ARP feature node for broadcast interfaces */
   if (lip->lip_host_type != LCP_ITF_HOST_TUN)
     {
-      vnet_feature_enable_disable ("arp", "lcpng-arp-phy",
+      vnet_feature_enable_disable ("arp", "linux-cp-arp-phy",
 				   lip->lip_phy_sw_if_index, 0, NULL, 0);
-      vnet_feature_enable_disable ("arp", "lcpng-arp-host",
+      vnet_feature_enable_disable ("arp", "linux-cp-arp-host",
 				   lip->lip_host_sw_if_index, 0, NULL, 0);
     }
   else
     {
-      vnet_feature_enable_disable ("ip4-punt", "lcpng-punt-l3", 0, 0, NULL,
+      vnet_feature_enable_disable ("ip4-punt", "linux-cp-punt-l3", 0, 0, NULL,
 				   0);
-      vnet_feature_enable_disable ("ip6-punt", "lcpng-punt-l3", 0, 0, NULL,
+      vnet_feature_enable_disable ("ip6-punt", "linux-cp-punt-l3", 0, 0, NULL,
 				   0);
     }
 
@@ -538,7 +538,7 @@ lcp_itf_pair_config (vlib_main_t *vm, unformat_input_t *input)
       if (unformat (input, "netns %v", &netns))
 	{
 	  vec_add1 (netns, 0);
-	  if (lcp_set_netns (netns) < 0)
+	  if (lcp_set_default_ns (netns) < 0)
 	    {
 	      return clib_error_return (0,
 					"lcpng namespace must be less than %d characters",
@@ -703,7 +703,7 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
    * Otherwise, use netns if defined, otherwise use the OS default.
    */
   if (ns == 0 || ns[0] == 0)
-    ns = lcp_get_netns ();
+    ns = lcp_get_default_ns ();
 
   /* sub interfaces do not need a tap created */
   if (vnet_sw_interface_is_sub (vnm, phy_sw_if_index))
@@ -1087,11 +1087,11 @@ VNET_HW_INTERFACE_LINK_UP_DOWN_FUNCTION (lcp_itf_pair_link_up_down);
 static clib_error_t *
 lcp_itf_pair_init (vlib_main_t *vm)
 {
-  vlib_punt_hdl_t punt_hdl = vlib_punt_client_register ("lcpng");
+  vlib_punt_hdl_t punt_hdl = vlib_punt_client_register ("linux-cp");
 
   /* punt IKE */
   vlib_punt_register (punt_hdl, ipsec_punt_reason[IPSEC_PUNT_IP4_SPI_UDP_0],
-		      "lcpng-punt");
+		      "linux-cp-punt");
 
   /* punt all unknown ports */
   udp_punt_unknown (vm, 0, 1);
@@ -1099,7 +1099,7 @@ lcp_itf_pair_init (vlib_main_t *vm)
   tcp_punt_unknown (vm, 0, 1);
   tcp_punt_unknown (vm, 1, 1);
 
-  lcp_itf_pair_logger = vlib_log_register_class ("lcpng", "itf");
+  lcp_itf_pair_logger = vlib_log_register_class ("linux-cp", "if");
 
   return NULL;
 }

@@ -145,7 +145,7 @@ VLIB_NODE_FN (lip_punt_node)
 }
 
 VLIB_REGISTER_NODE (lip_punt_node) = {
-  .name = "lcpng-punt",
+  .name = "linux-cp-punt",
   .vector_size = sizeof (u32),
   .format_trace = format_lip_punt_trace,
   .type = VLIB_NODE_TYPE_INTERNAL,
@@ -180,7 +180,7 @@ format_lcp_punt_l3_trace (u8 *s, va_list *args)
   CLIB_UNUSED (vlib_node_t * node) = va_arg (*args, vlib_node_t *);
   lcp_punt_l3_trace_t *t = va_arg (*args, lcp_punt_l3_trace_t *);
 
-  s = format (s, "lcpng-punt-l3: %u", t->phy_sw_if_index);
+  s = format (s, "linux-cp-punt-l3: %u", t->phy_sw_if_index);
 
   return s;
 }
@@ -248,7 +248,7 @@ VLIB_NODE_FN (lcp_punt_l3_node)
 }
 
 VLIB_REGISTER_NODE (lcp_punt_l3_node) = {
-  .name = "lcpng-punt-l3",
+  .name = "linux-cp-punt-l3",
   .vector_size = sizeof (u32),
   .format_trace = format_lcp_punt_l3_trace,
   .type = VLIB_NODE_TYPE_INTERNAL,
@@ -261,13 +261,13 @@ VLIB_REGISTER_NODE (lcp_punt_l3_node) = {
 
 VNET_FEATURE_INIT (lcp_punt_l3_ip4, static) = {
   .arc_name = "ip4-punt",
-  .node_name = "lcpng-punt-l3",
+  .node_name = "linux-cp-punt-l3",
   .runs_before = VNET_FEATURES ("ip4-punt-redirect"),
 };
 
 VNET_FEATURE_INIT (lip_punt_l3_ip6, static) = {
   .arc_name = "ip6-punt",
-  .node_name = "lcpng-punt-l3",
+  .node_name = "linux-cp-punt-l3",
   .runs_before = VNET_FEATURES ("ip6-punt-redirect"),
 };
 
@@ -406,7 +406,7 @@ VLIB_NODE_FN (lcp_xc_ip6)
   return (lcp_xc_inline (vm, node, frame, AF_IP6));
 }
 
-VLIB_REGISTER_NODE (lcp_xc_ip4) = { .name = "lcpng-xc-ip4",
+VLIB_REGISTER_NODE (lcp_xc_ip4) = { .name = "linux-cp-xc-ip4",
 				    .vector_size = sizeof (u32),
 				    .format_trace = format_lcp_xc_trace,
 				    .type = VLIB_NODE_TYPE_INTERNAL,
@@ -414,14 +414,14 @@ VLIB_REGISTER_NODE (lcp_xc_ip4) = { .name = "lcpng-xc-ip4",
 
 VNET_FEATURE_INIT (lcp_xc_ip4_ucast_node, static) = {
   .arc_name = "ip4-unicast",
-  .node_name = "lcpng-xc-ip4",
+  .node_name = "linux-cp-xc-ip4",
 };
 VNET_FEATURE_INIT (lcp_xc_ip4_mcast_node, static) = {
   .arc_name = "ip4-multicast",
-  .node_name = "lcpng-xc-ip4",
+  .node_name = "linux-cp-xc-ip4",
 };
 
-VLIB_REGISTER_NODE (lcp_xc_ip6) = { .name = "lcpng-xc-ip6",
+VLIB_REGISTER_NODE (lcp_xc_ip6) = { .name = "linux-cp-xc-ip6",
 				    .vector_size = sizeof (u32),
 				    .format_trace = format_lcp_xc_trace,
 				    .type = VLIB_NODE_TYPE_INTERNAL,
@@ -429,11 +429,11 @@ VLIB_REGISTER_NODE (lcp_xc_ip6) = { .name = "lcpng-xc-ip6",
 
 VNET_FEATURE_INIT (lcp_xc_ip6_ucast_node, static) = {
   .arc_name = "ip6-unicast",
-  .node_name = "lcpng-xc-ip6",
+  .node_name = "linux-cp-xc-ip6",
 };
 VNET_FEATURE_INIT (lcp_xc_ip6_mcast_node, static) = {
   .arc_name = "ip6-multicast",
-  .node_name = "lcpng-xc-ip6",
+  .node_name = "linux-cp-xc-ip6",
 };
 
 typedef enum
@@ -526,7 +526,7 @@ VLIB_NODE_FN (lcp_xc_l3_ip6_node)
 }
 
 VLIB_REGISTER_NODE (lcp_xc_l3_ip4_node) = {
-  .name = "lcpng-xc-l3-ip4",
+  .name = "linux-cp-xc-l3-ip4",
   .vector_size = sizeof (u32),
   .format_trace = format_lcp_xc_trace,
   .type = VLIB_NODE_TYPE_INTERNAL,
@@ -539,16 +539,16 @@ VLIB_REGISTER_NODE (lcp_xc_l3_ip4_node) = {
 
 VNET_FEATURE_INIT (lcp_xc_node_l3_ip4_unicast, static) = {
   .arc_name = "ip4-unicast",
-  .node_name = "lcpng-xc-l3-ip4",
+  .node_name = "linux-cp-xc-l3-ip4",
 };
 
 VNET_FEATURE_INIT (lcp_xc_node_l3_ip4_multicaast, static) = {
   .arc_name = "ip4-multicast",
-  .node_name = "lcpng-xc-l3-ip4",
+  .node_name = "linux-cp-xc-l3-ip4",
 };
 
 VLIB_REGISTER_NODE (lcp_xc_l3_ip6_node) = {
-  .name = "lcpng-xc-l3-ip6",
+  .name = "linux-cp-xc-l3-ip6",
   .vector_size = sizeof (u32),
   .format_trace = format_lcp_xc_trace,
   .type = VLIB_NODE_TYPE_INTERNAL,
@@ -561,12 +561,12 @@ VLIB_REGISTER_NODE (lcp_xc_l3_ip6_node) = {
 
 VNET_FEATURE_INIT (lcp_xc_node_l3_ip6_unicast, static) = {
   .arc_name = "ip6-unicast",
-  .node_name = "lcpng-xc-l3-ip6",
+  .node_name = "linux-cp-xc-l3-ip6",
 };
 
 VNET_FEATURE_INIT (lcp_xc_node_l3_ip6_multicast, static) = {
   .arc_name = "ip6-multicast",
-  .node_name = "lcpng-xc-l3-ip6",
+  .node_name = "linux-cp-xc-l3-ip6",
 };
 
 #define foreach_lcp_arp                                                       \
@@ -800,7 +800,7 @@ VLIB_NODE_FN (lcp_arp_phy_node)
 }
 
 VLIB_REGISTER_NODE (lcp_arp_phy_node) = {
-  .name = "lcpng-arp-phy",
+  .name = "linux-cp-arp-phy",
   .vector_size = sizeof (u32),
   .format_trace = format_lcp_arp_trace,
   .type = VLIB_NODE_TYPE_INTERNAL,
@@ -817,7 +817,7 @@ VLIB_REGISTER_NODE (lcp_arp_phy_node) = {
 
 VNET_FEATURE_INIT (lcp_arp_phy_arp_feat, static) = {
   .arc_name = "arp",
-  .node_name = "lcpng-arp-phy",
+  .node_name = "linux-cp-arp-phy",
   .runs_before = VNET_FEATURES ("arp-reply"),
 };
 
@@ -884,7 +884,7 @@ VLIB_NODE_FN (lcp_arp_host_node)
 }
 
 VLIB_REGISTER_NODE (lcp_arp_host_node) = {
-  .name = "lcpng-arp-host",
+  .name = "linux-cp-arp-host",
   .vector_size = sizeof (u32),
   .format_trace = format_lcp_arp_trace,
   .type = VLIB_NODE_TYPE_INTERNAL,
@@ -901,7 +901,7 @@ VLIB_REGISTER_NODE (lcp_arp_host_node) = {
 
 VNET_FEATURE_INIT (lcp_arp_host_arp_feat, static) = {
   .arc_name = "arp",
-  .node_name = "lcpng-arp-host",
+  .node_name = "linux-cp-arp-host",
   .runs_before = VNET_FEATURES ("arp-reply"),
 };
 
