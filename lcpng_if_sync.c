@@ -34,33 +34,53 @@
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 
-/* walk function to copy forward all sw interface link state flags into
- * their counterpart LIP link state.
+/* walk function to copy forward all sw interface link state flags
+ * MTU, and IP addresses into their counterpart LIP interface.
+ *
+ * This is called upon MTU changes and state changes.
  */
 static walk_rc_t
 lcp_itf_pair_walk_sync_state_cb (index_t lipi, void *ctx)
 {
   lcp_itf_pair_t *lip;
-  vnet_sw_interface_t *phy;
+  vnet_sw_interface_t *sw;
+  vnet_sw_interface_t *sup_sw;
 
   lip = lcp_itf_pair_get (lipi);
   if (!lip)
     return WALK_CONTINUE;
 
-  phy =
+  sw =
     vnet_get_sw_interface_or_null (vnet_get_main (), lip->lip_phy_sw_if_index);
-  if (!phy)
+  if (!sw)
     return WALK_CONTINUE;
+  sup_sw =
+    vnet_get_sw_interface_or_null (vnet_get_main (), sw->sup_sw_if_index);
 
-  LCP_ITF_PAIR_DBG ("walk_sync_state: lip %U flags %u", format_lcp_itf_pair,
-		    lip, phy->flags);
-  lcp_itf_set_link_state (lip, (phy->flags & VNET_SW_INTERFACE_FLAG_ADMIN_UP));
+  LCP_ITF_PAIR_DBG ("walk_sync_state: lip %U flags %u mtu %u sup-mtu %u",
+		    format_lcp_itf_pair, lip, sw->flags, sw->mtu[VNET_MTU_L3],
+		    sup_sw->mtu[VNET_MTU_L3]);
+  lcp_itf_set_link_state (lip, (sw->flags & VNET_SW_INTERFACE_FLAG_ADMIN_UP));
+
+  /* Linux will clamp MTU of children when the parent is lower. VPP is fine
+   * with differing MTUs. Reconcile any differences
+   */
+  if (sup_sw->mtu[VNET_MTU_L3] < sw->mtu[VNET_MTU_L3])
+    {
+      LCP_ITF_PAIR_ERR ("walk_sync_state: lip %U flags %u mtu %u sup-mtu %u: "
+			"clamping to sup-mtu to satisfy netlink",
+			format_lcp_itf_pair, lip, sw->flags,
+			sw->mtu[VNET_MTU_L3], sup_sw->mtu[VNET_MTU_L3]);
+      vnet_sw_interface_set_mtu (vnet_get_main (), sw->sw_if_index,
+				 sup_sw->mtu[VNET_MTU_L3]);
+      vnet_netlink_set_link_mtu (lip->lip_vif_index, sup_sw->mtu[VNET_MTU_L3]);
+    }
 
   /* Linux will remove IPv6 addresses on children when the master state
    * goes down, so we ensure all IPv4/IPv6 addresses are set when the phy
    * comes back up.
    */
-  if (phy->flags & VNET_SW_INTERFACE_FLAG_ADMIN_UP)
+  if (sw->flags & VNET_SW_INTERFACE_FLAG_ADMIN_UP)
     {
       lcp_itf_set_interface_addr (lip);
     }
@@ -128,6 +148,13 @@ lcp_itf_mtu_change (vnet_main_t *vnm, u32 sw_if_index, u32 flags)
   LCP_ITF_PAIR_INFO ("mtu_change: %U mtu %u", format_lcp_itf_pair, lip,
 		     si->mtu[VNET_MTU_L3]);
   vnet_netlink_set_link_mtu (lip->lip_vif_index, si->mtu[VNET_MTU_L3]);
+
+  // When Linux changes MTU on a master interface, all of its children that
+  // have a higher MTU are clamped to this value. This is not true in VPP,
+  // so we are forced to undo that change by walking the sub-interfaces of
+  // a phy and syncing their state back into linux.
+  // For simplicity, just walk all interfaces.
+  lcp_itf_pair_walk (lcp_itf_pair_walk_sync_state_cb, 0);
 
   return NULL;
 }
