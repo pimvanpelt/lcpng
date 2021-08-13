@@ -618,6 +618,36 @@ lcp_itf_set_link_state (const lcp_itf_pair_t *lip, u8 state)
   return;
 }
 
+void
+lcp_itf_set_interface_addr (const lcp_itf_pair_t *lip)
+{
+  ip4_main_t *im4 = &ip4_main;
+  ip6_main_t *im6 = &ip6_main;
+  ip_lookup_main_t *lm4 = &im4->lookup_main;
+  ip_lookup_main_t *lm6 = &im6->lookup_main;
+  ip_interface_address_t *ia = 0;
+
+  /* Display any IP4 addressing info */
+  foreach_ip_interface_address (
+    lm4, ia, lip->lip_phy_sw_if_index, 1 /* honor unnumbered */, ({
+      ip4_address_t *r4 = ip_interface_address_get_address (lm4, ia);
+      LCP_ITF_PAIR_ERR ("set_interface_addr: %U add ip4 %U/%d",
+			format_lcp_itf_pair, lip, format_ip4_address, r4,
+			ia->address_length);
+      vnet_netlink_add_ip4_addr (lip->lip_vif_index, r4, ia->address_length);
+    }));
+
+  /* Display any IP6 addressing info */
+  foreach_ip_interface_address (
+    lm6, ia, lip->lip_phy_sw_if_index, 1 /* honor unnumbered */, ({
+      ip6_address_t *r6 = ip_interface_address_get_address (lm6, ia);
+      LCP_ITF_PAIR_ERR ("set_interface_addr: %U add ip6 %U/%d",
+			format_lcp_itf_pair, lip, format_ip6_address, r6,
+			ia->address_length);
+      vnet_netlink_add_ip6_addr (lip->lip_vif_index, r6, ia->address_length);
+    }));
+}
+
 typedef struct
 {
   u32 hw_if_index;
@@ -927,7 +957,7 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
 		    host_if_type, ns);
 
   /*
-   * Copy the link state from VPP inon the host side.
+   * Copy the link state from VPP into the host side.
    * The TAP is shared by many interfaces, always keep it up.
    * This controls whether the host can RX/TX.
    */
@@ -939,6 +969,9 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
 		  format_lcp_itf_pair, lip);
   lcp_itf_set_link_state (lip, sw->flags & VNET_SW_INTERFACE_FLAG_ADMIN_UP);
 
+  /* Copy L3 addresses from VPP into the host side, if any.
+   */
+  lcp_itf_set_interface_addr (lip);
 
   if (host_sw_if_indexp)
     *host_sw_if_indexp = host_sw_if_index;
@@ -1051,7 +1084,13 @@ VNET_SW_INTERFACE_ADD_DEL_FUNCTION (lcp_itf_phy_add);
 static clib_error_t *
 lcp_itf_pair_init (vlib_main_t *vm)
 {
+  ip4_main_t *im4 = &ip4_main;
+  ip6_main_t *im6 = &ip6_main;
+  ip4_add_del_interface_address_callback_t cb4;
+  ip6_add_del_interface_address_callback_t cb6;
+
   vlib_punt_hdl_t punt_hdl = vlib_punt_client_register("linux-cp");
+  lcp_itf_pair_logger = vlib_log_register_class ("linux-cp", "if");
 
   /* punt IKE */
   vlib_punt_register(punt_hdl, ipsec_punt_reason[IPSEC_PUNT_IP4_SPI_UDP_0],
@@ -1063,7 +1102,13 @@ lcp_itf_pair_init (vlib_main_t *vm)
   tcp_punt_unknown (vm, 0, 1);
   tcp_punt_unknown (vm, 1, 1);
 
-  lcp_itf_pair_logger = vlib_log_register_class("linux-cp", "if");
+  cb4.function = lcp_itf_ip4_add_del_interface_addr;
+  cb4.function_opaque = 0;
+  vec_add1 (im4->add_del_interface_address_callbacks, cb4);
+
+  cb6.function = lcp_itf_ip6_add_del_interface_addr;
+  cb6.function_opaque = 0;
+  vec_add1 (im6->add_del_interface_address_callbacks, cb6);
 
   return NULL;
 }

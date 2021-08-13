@@ -31,6 +31,8 @@
 #include <vnet/tcp/tcp.h>
 #include <vnet/devices/tap/tap.h>
 #include <vnet/devices/netlink.h>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
 
 /* walk function to copy forward all sw interface link state flags into
  * their counterpart LIP link state.
@@ -53,6 +55,15 @@ lcp_itf_pair_walk_sync_state_cb (index_t lipi, void *ctx)
   LCP_ITF_PAIR_DBG ("walk_sync_state: lip %U flags %u", format_lcp_itf_pair,
 		    lip, phy->flags);
   lcp_itf_set_link_state (lip, (phy->flags & VNET_SW_INTERFACE_FLAG_ADMIN_UP));
+
+  /* Linux will remove IPv6 addresses on children when the master state
+   * goes down, so we ensure all IPv4/IPv6 addresses are set when the phy
+   * comes back up.
+   */
+  if (phy->flags & VNET_SW_INTERFACE_FLAG_ADMIN_UP)
+    {
+      lcp_itf_set_interface_addr (lip);
+    }
 
   return WALK_CONTINUE;
 }
@@ -83,7 +94,7 @@ lcp_itf_admin_state_change (vnet_main_t * vnm, u32 sw_if_index, u32 flags)
 		    format_vnet_sw_if_index_name, vnm, hi->hw_if_index,
 		    format_vnet_sw_if_index_name, vnm, si->sw_if_index, flags);
   tap_set_carrier (si->hw_if_index,
-		   (hi->flags & VNET_HW_INTERFACE_FLAG_LINK_UP));
+		   (si->flags & VNET_SW_INTERFACE_FLAG_ADMIN_UP));
 
   // When Linux changes link on a master interface, all of its children also
   // change. This is not true in VPP, so we are forced to undo that change by
@@ -122,3 +133,191 @@ lcp_itf_mtu_change (vnet_main_t *vnm, u32 sw_if_index, u32 flags)
 }
 
 VNET_SW_INTERFACE_MTU_CHANGE_FUNCTION (lcp_itf_mtu_change);
+
+// TODO(pim): submit upstream to vnet/devices/netlink.[ch]
+typedef struct
+{
+  u8 *data;
+} vnet_netlink_msg_t;
+
+static void
+vnet_netlink_msg_init (vnet_netlink_msg_t *m, u16 type, u16 flags,
+		       void *msg_data, int msg_len)
+{
+  struct nlmsghdr *nh;
+  u8 *p;
+  clib_memset (m, 0, sizeof (vnet_netlink_msg_t));
+  vec_add2 (m->data, p, NLMSG_SPACE (msg_len));
+  ASSERT (m->data == p);
+
+  nh = (struct nlmsghdr *) p;
+  nh->nlmsg_flags = flags | NLM_F_ACK;
+  nh->nlmsg_type = type;
+  clib_memcpy (m->data + sizeof (struct nlmsghdr), msg_data, msg_len);
+}
+
+static void
+vnet_netlink_msg_add_rtattr (vnet_netlink_msg_t *m, u16 rta_type,
+			     void *rta_data, int rta_data_len)
+{
+  struct rtattr *rta;
+  u8 *p;
+
+  vec_add2 (m->data, p, RTA_SPACE (rta_data_len));
+  rta = (struct rtattr *) p;
+  rta->rta_type = rta_type;
+  rta->rta_len = RTA_LENGTH (rta_data_len);
+  clib_memcpy (RTA_DATA (rta), rta_data, rta_data_len);
+}
+static clib_error_t *
+vnet_netlink_msg_send (vnet_netlink_msg_t *m, vnet_netlink_msg_t **replies)
+{
+  clib_error_t *err = 0;
+  struct sockaddr_nl ra = { 0 };
+  int len, sock;
+  struct nlmsghdr *nh = (struct nlmsghdr *) m->data;
+  nh->nlmsg_len = vec_len (m->data);
+  char buf[4096];
+
+  if ((sock = socket (AF_NETLINK, SOCK_RAW, NETLINK_ROUTE)) == -1)
+    return clib_error_return_unix (0, "socket(AF_NETLINK)");
+
+  ra.nl_family = AF_NETLINK;
+  ra.nl_pid = 0;
+
+  if ((bind (sock, (struct sockaddr *) &ra, sizeof (ra))) == -1)
+    {
+      err = clib_error_return_unix (0, "bind");
+      goto done;
+    }
+
+  if ((send (sock, m->data, vec_len (m->data), 0)) == -1)
+    err = clib_error_return_unix (0, "send");
+
+  if ((len = recv (sock, buf, sizeof (buf), 0)) == -1)
+    err = clib_error_return_unix (0, "recv");
+  for (nh = (struct nlmsghdr *) buf; NLMSG_OK (nh, len);
+       nh = NLMSG_NEXT (nh, len))
+    {
+      if (nh->nlmsg_type == NLMSG_DONE)
+	goto done;
+
+      if (nh->nlmsg_type == NLMSG_ERROR)
+	{
+	  struct nlmsgerr *e = (struct nlmsgerr *) NLMSG_DATA (nh);
+	  if (e->error)
+	    err = clib_error_return (0, "netlink error %d", e->error);
+	  goto done;
+	}
+
+      if (replies)
+	{
+	  vnet_netlink_msg_t msg = { NULL };
+	  u8 *p;
+	  vec_add2 (msg.data, p, nh->nlmsg_len);
+	  clib_memcpy (p, nh, nh->nlmsg_len);
+	  vec_add1 (*replies, msg);
+	}
+    }
+
+done:
+  close (sock);
+  vec_free (m->data);
+  return err;
+}
+
+clib_error_t *
+vnet_netlink_del_ip4_addr (int ifindex, void *addr, int pfx_len)
+{
+  vnet_netlink_msg_t m;
+  struct ifaddrmsg ifa = { 0 };
+  clib_error_t *err = 0;
+
+  ifa.ifa_family = AF_INET;
+  ifa.ifa_prefixlen = pfx_len;
+  ifa.ifa_index = ifindex;
+
+  vnet_netlink_msg_init (&m, RTM_DELADDR, NLM_F_REQUEST, &ifa,
+			 sizeof (struct ifaddrmsg));
+
+  vnet_netlink_msg_add_rtattr (&m, IFA_LOCAL, addr, 4);
+  vnet_netlink_msg_add_rtattr (&m, IFA_ADDRESS, addr, 4);
+  err = vnet_netlink_msg_send (&m, NULL);
+  if (err)
+    err = clib_error_return (0, "del ip4 addr %U", format_clib_error, err);
+  return err;
+}
+
+clib_error_t *
+vnet_netlink_del_ip6_addr (int ifindex, void *addr, int pfx_len)
+{
+  vnet_netlink_msg_t m;
+  struct ifaddrmsg ifa = { 0 };
+  clib_error_t *err = 0;
+
+  ifa.ifa_family = AF_INET6;
+  ifa.ifa_prefixlen = pfx_len;
+  ifa.ifa_index = ifindex;
+
+  vnet_netlink_msg_init (&m, RTM_DELADDR, NLM_F_REQUEST, &ifa,
+			 sizeof (struct ifaddrmsg));
+
+  vnet_netlink_msg_add_rtattr (&m, IFA_LOCAL, addr, 16);
+  vnet_netlink_msg_add_rtattr (&m, IFA_ADDRESS, addr, 16);
+  err = vnet_netlink_msg_send (&m, NULL);
+  if (err)
+    err = clib_error_return (0, "del ip6 addr %U", format_clib_error, err);
+  return err;
+}
+// TODO(pim) move previous block upstream
+
+void
+lcp_itf_ip4_add_del_interface_addr (ip4_main_t *im, uword opaque,
+				    u32 sw_if_index, ip4_address_t *address,
+				    u32 address_length, u32 if_address_index,
+				    u32 is_del)
+{
+  const lcp_itf_pair_t *lip;
+
+  LCP_ITF_PAIR_DBG ("ip4_addr_%s: si:%U %U/%u", is_del ? "del" : "add",
+		    format_vnet_sw_if_index_name, vnet_get_main (),
+		    sw_if_index, format_ip4_address, address, address_length);
+
+  lip = lcp_itf_pair_get (lcp_itf_pair_find_by_phy (sw_if_index));
+  if (!lip)
+    return;
+  LCP_ITF_PAIR_ERR ("ip4_addr_%s: %U ip4 %U/%u", is_del ? "del" : "add",
+		    format_lcp_itf_pair, lip, format_ip4_address, address,
+		    address_length);
+
+  if (is_del)
+    vnet_netlink_del_ip4_addr (lip->lip_vif_index, address, address_length);
+  else
+    vnet_netlink_add_ip4_addr (lip->lip_vif_index, address, address_length);
+
+  return;
+}
+
+void
+lcp_itf_ip6_add_del_interface_addr (ip6_main_t *im, uword opaque,
+				    u32 sw_if_index, ip6_address_t *address,
+				    u32 address_length, u32 if_address_index,
+				    u32 is_del)
+{
+  const lcp_itf_pair_t *lip;
+
+  LCP_ITF_PAIR_DBG ("ip6_addr_%s: si:%U %U/%u", is_del ? "del" : "add",
+		    format_vnet_sw_if_index_name, vnet_get_main (),
+		    sw_if_index, format_ip6_address, address, address_length);
+
+  lip = lcp_itf_pair_get (lcp_itf_pair_find_by_phy (sw_if_index));
+  if (!lip)
+    return;
+  LCP_ITF_PAIR_ERR ("ip6_addr_%s: %U ip4 %U/%u", is_del ? "del" : "add",
+		    format_lcp_itf_pair, lip, format_ip6_address, address,
+		    address_length);
+  if (is_del)
+    vnet_netlink_del_ip6_addr (lip->lip_vif_index, address, address_length);
+  else
+    vnet_netlink_add_ip6_addr (lip->lip_vif_index, address, address_length);
+}

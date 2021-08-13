@@ -18,6 +18,8 @@
 #include <vnet/dpo/dpo.h>
 #include <vnet/adj/adj.h>
 #include <vnet/ip/ip_types.h>
+#include <vnet/udp/udp.h>
+#include <vnet/tcp/tcp.h>
 
 #include <plugins/lcpng/lcpng.h>
 
@@ -169,6 +171,21 @@ void lcp_itf_pair_register_vft (lcp_itf_pair_vft_t *lcp_itf_vft);
 
 /* Set TAP and Linux host link state */
 void lcp_itf_set_link_state (const lcp_itf_pair_t *lip, u8 state);
+
+/* Set any VPP L3 addresses on Linux host device */
+void lcp_itf_set_interface_addr (const lcp_itf_pair_t *lip);
+
+/* Sync IPv4 and IPv6 address from VPP to Linux device */
+void lcp_itf_ip4_add_del_interface_addr (ip4_main_t *im, uword opaque,
+					 u32 sw_if_index,
+					 ip4_address_t *address,
+					 u32 address_length,
+					 u32 if_address_index, u32 is_del);
+void lcp_itf_ip6_add_del_interface_addr (ip6_main_t *im, uword opaque,
+					 u32 sw_if_index,
+					 ip6_address_t *address,
+					 u32 address_length,
+					 u32 if_address_index, u32 is_del);
 
 /*
  * fd.io coding-style-patch-verification: ON

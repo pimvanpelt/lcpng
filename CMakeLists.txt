@@ -28,6 +28,7 @@ add_vpp_library(lcpng
   SOURCES
   lcpng_interface.c
   lcpng_adj.c
+  lcpng_if_sync.c
   lcpng.c
 
   LINK_LIBRARIES
@@ -44,7 +45,6 @@ add_vpp_plugin(lcpng_if
   lcpng_if_api.c
   lcpng_if_cli.c
   lcpng_if_node.c
-  lcpng_if_sync.c
 
   API_FILES
   lcpng_if.api
