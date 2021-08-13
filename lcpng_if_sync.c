@@ -95,3 +95,30 @@ lcp_itf_admin_state_change (vnet_main_t * vnm, u32 sw_if_index, u32 flags)
 }   
 
 VNET_SW_INTERFACE_ADMIN_UP_DOWN_FUNCTION(lcp_itf_admin_state_change);
+
+static clib_error_t *
+lcp_itf_mtu_change (vnet_main_t *vnm, u32 sw_if_index, u32 flags)
+{
+  const lcp_itf_pair_t *lip;
+  vnet_sw_interface_t *si;
+
+  LCP_ITF_PAIR_DBG ("mtu_change: sw %U %u", format_vnet_sw_if_index_name, vnm,
+		    sw_if_index, flags);
+
+  // Sync interface state changes into host
+  lip = lcp_itf_pair_get (lcp_itf_pair_find_by_phy (sw_if_index));
+  if (!lip)
+    return NULL;
+
+  si = vnet_get_sw_interface_or_null (vnm, sw_if_index);
+  if (!si)
+    return NULL;
+
+  LCP_ITF_PAIR_INFO ("mtu_change: %U mtu %u", format_lcp_itf_pair, lip,
+		     si->mtu[VNET_MTU_L3]);
+  vnet_netlink_set_link_mtu (lip->lip_vif_index, si->mtu[VNET_MTU_L3]);
+
+  return NULL;
+}
+
+VNET_SW_INTERFACE_MTU_CHANGE_FUNCTION (lcp_itf_mtu_change);
