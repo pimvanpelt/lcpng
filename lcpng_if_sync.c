@@ -21,6 +21,8 @@
 #include <vnet/vnet.h>
 #include <vnet/plugin/plugin.h>
 
+#include <vppinfra/linux/netns.h>
+
 #include <plugins/lcpng/lcpng_interface.h>
 
 #include <vlibapi/api.h>
@@ -45,6 +47,8 @@ lcp_itf_pair_walk_sync_state_cb (index_t lipi, void *ctx)
   lcp_itf_pair_t *lip;
   vnet_sw_interface_t *sw;
   vnet_sw_interface_t *sup_sw;
+  int curr_ns_fd = -1;
+  int vif_ns_fd = -1;
 
   lip = lcp_itf_pair_get (lipi);
   if (!lip)
@@ -56,6 +60,14 @@ lcp_itf_pair_walk_sync_state_cb (index_t lipi, void *ctx)
     return WALK_CONTINUE;
   sup_sw =
     vnet_get_sw_interface_or_null (vnet_get_main (), sw->sup_sw_if_index);
+
+  if (lip->lip_namespace)
+    {
+      curr_ns_fd = clib_netns_open (NULL /* self */);
+      vif_ns_fd = clib_netns_open (lip->lip_namespace);
+      if (vif_ns_fd != -1)
+	clib_setns (vif_ns_fd);
+    }
 
   LCP_ITF_PAIR_DBG ("walk_sync_state: lip %U flags %u mtu %u sup-mtu %u",
 		    format_lcp_itf_pair, lip, sw->flags, sw->mtu[VNET_MTU_L3],
@@ -85,6 +97,15 @@ lcp_itf_pair_walk_sync_state_cb (index_t lipi, void *ctx)
       lcp_itf_set_interface_addr (lip);
     }
 
+  if (vif_ns_fd != -1)
+    close (vif_ns_fd);
+
+  if (curr_ns_fd != -1)
+    {
+      clib_setns (curr_ns_fd);
+      close (curr_ns_fd);
+    }
+
   return WALK_CONTINUE;
 }
 
@@ -95,6 +116,9 @@ lcp_itf_admin_state_change (vnet_main_t * vnm, u32 sw_if_index, u32 flags)
   vnet_hw_interface_t *hi;
   vnet_sw_interface_t *si;
 
+  int curr_ns_fd = -1;
+  int vif_ns_fd = -1;
+
   LCP_ITF_PAIR_DBG ("admin_state_change: sw %U %u",
 		  format_vnet_sw_if_index_name, vnm, sw_if_index,
 		  flags);
@@ -103,9 +127,25 @@ lcp_itf_admin_state_change (vnet_main_t * vnm, u32 sw_if_index, u32 flags)
   lip = lcp_itf_pair_get (lcp_itf_pair_find_by_phy (sw_if_index));
   if (!lip) return NULL;
 
+  if (lip->lip_namespace)
+    {
+      curr_ns_fd = clib_netns_open (NULL /* self */);
+      vif_ns_fd = clib_netns_open (lip->lip_namespace);
+      if (vif_ns_fd != -1)
+	clib_setns (vif_ns_fd);
+    }
+
   LCP_ITF_PAIR_INFO ("admin_state_change: %U flags %u", format_lcp_itf_pair, lip, flags);
   lcp_itf_set_link_state (lip, (flags & VNET_SW_INTERFACE_FLAG_ADMIN_UP));
 
+  if (vif_ns_fd != -1)
+    close (vif_ns_fd);
+
+  if (curr_ns_fd != -1)
+    {
+      clib_setns (curr_ns_fd);
+      close (curr_ns_fd);
+    }
   // Sync PHY carrier changes into TAP
   hi = vnet_get_hw_interface_or_null (vnm, sw_if_index);
   si = vnet_get_sw_interface_or_null (vnm, lip->lip_host_sw_if_index);
@@ -132,6 +172,8 @@ lcp_itf_mtu_change (vnet_main_t *vnm, u32 sw_if_index, u32 flags)
 {
   const lcp_itf_pair_t *lip;
   vnet_sw_interface_t *si;
+  int curr_ns_fd = -1;
+  int vif_ns_fd = -1;
 
   LCP_ITF_PAIR_DBG ("mtu_change: sw %U %u", format_vnet_sw_if_index_name, vnm,
 		    sw_if_index, flags);
@@ -145,9 +187,25 @@ lcp_itf_mtu_change (vnet_main_t *vnm, u32 sw_if_index, u32 flags)
   if (!si)
     return NULL;
 
+  if (lip->lip_namespace)
+    {
+      curr_ns_fd = clib_netns_open (NULL /* self */);
+      vif_ns_fd = clib_netns_open (lip->lip_namespace);
+      if (vif_ns_fd != -1)
+	clib_setns (vif_ns_fd);
+    }
+
   LCP_ITF_PAIR_INFO ("mtu_change: %U mtu %u", format_lcp_itf_pair, lip,
 		     si->mtu[VNET_MTU_L3]);
   vnet_netlink_set_link_mtu (lip->lip_vif_index, si->mtu[VNET_MTU_L3]);
+  if (vif_ns_fd != -1)
+    close (vif_ns_fd);
+
+  if (curr_ns_fd != -1)
+    {
+      clib_setns (curr_ns_fd);
+      close (curr_ns_fd);
+    }
 
   // When Linux changes MTU on a master interface, all of its children that
   // have a higher MTU are clamped to this value. This is not true in VPP,
@@ -305,6 +363,8 @@ lcp_itf_ip4_add_del_interface_addr (ip4_main_t *im, uword opaque,
 				    u32 is_del)
 {
   const lcp_itf_pair_t *lip;
+  int curr_ns_fd = -1;
+  int vif_ns_fd = -1;
 
   LCP_ITF_PAIR_DBG ("ip4_addr_%s: si:%U %U/%u", is_del ? "del" : "add",
 		    format_vnet_sw_if_index_name, vnet_get_main (),
@@ -313,6 +373,15 @@ lcp_itf_ip4_add_del_interface_addr (ip4_main_t *im, uword opaque,
   lip = lcp_itf_pair_get (lcp_itf_pair_find_by_phy (sw_if_index));
   if (!lip)
     return;
+
+  if (lip->lip_namespace)
+    {
+      curr_ns_fd = clib_netns_open (NULL /* self */);
+      vif_ns_fd = clib_netns_open (lip->lip_namespace);
+      if (vif_ns_fd != -1)
+	clib_setns (vif_ns_fd);
+    }
+
   LCP_ITF_PAIR_ERR ("ip4_addr_%s: %U ip4 %U/%u", is_del ? "del" : "add",
 		    format_lcp_itf_pair, lip, format_ip4_address, address,
 		    address_length);
@@ -322,6 +391,14 @@ lcp_itf_ip4_add_del_interface_addr (ip4_main_t *im, uword opaque,
   else
     vnet_netlink_add_ip4_addr (lip->lip_vif_index, address, address_length);
 
+  if (vif_ns_fd != -1)
+    close (vif_ns_fd);
+
+  if (curr_ns_fd != -1)
+    {
+      clib_setns (curr_ns_fd);
+      close (curr_ns_fd);
+    }
   return;
 }
 
@@ -332,6 +409,8 @@ lcp_itf_ip6_add_del_interface_addr (ip6_main_t *im, uword opaque,
 				    u32 is_del)
 {
   const lcp_itf_pair_t *lip;
+  int curr_ns_fd = -1;
+  int vif_ns_fd = -1;
 
   LCP_ITF_PAIR_DBG ("ip6_addr_%s: si:%U %U/%u", is_del ? "del" : "add",
 		    format_vnet_sw_if_index_name, vnet_get_main (),
@@ -340,6 +419,14 @@ lcp_itf_ip6_add_del_interface_addr (ip6_main_t *im, uword opaque,
   lip = lcp_itf_pair_get (lcp_itf_pair_find_by_phy (sw_if_index));
   if (!lip)
     return;
+
+  if (lip->lip_namespace)
+    {
+      curr_ns_fd = clib_netns_open (NULL /* self */);
+      vif_ns_fd = clib_netns_open (lip->lip_namespace);
+      if (vif_ns_fd != -1)
+	clib_setns (vif_ns_fd);
+    }
   LCP_ITF_PAIR_ERR ("ip6_addr_%s: %U ip4 %U/%u", is_del ? "del" : "add",
 		    format_lcp_itf_pair, lip, format_ip6_address, address,
 		    address_length);
@@ -347,4 +434,13 @@ lcp_itf_ip6_add_del_interface_addr (ip6_main_t *im, uword opaque,
     vnet_netlink_del_ip6_addr (lip->lip_vif_index, address, address_length);
   else
     vnet_netlink_add_ip6_addr (lip->lip_vif_index, address, address_length);
+
+  if (vif_ns_fd != -1)
+    close (vif_ns_fd);
+
+  if (curr_ns_fd != -1)
+    {
+      clib_setns (curr_ns_fd);
+      close (curr_ns_fd);
+    }
 }

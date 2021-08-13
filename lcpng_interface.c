@@ -626,6 +626,16 @@ lcp_itf_set_interface_addr (const lcp_itf_pair_t *lip)
   ip_lookup_main_t *lm4 = &im4->lookup_main;
   ip_lookup_main_t *lm6 = &im6->lookup_main;
   ip_interface_address_t *ia = 0;
+  int vif_ns_fd = -1;
+  int curr_ns_fd = -1;
+
+  if (lip->lip_namespace)
+    {
+      curr_ns_fd = clib_netns_open (NULL /* self */);
+      vif_ns_fd = clib_netns_open (lip->lip_namespace);
+      if (vif_ns_fd != -1)
+	clib_setns (vif_ns_fd);
+    }
 
   /* Display any IP4 addressing info */
   foreach_ip_interface_address (
@@ -646,6 +656,15 @@ lcp_itf_set_interface_addr (const lcp_itf_pair_t *lip)
 			ia->address_length);
       vnet_netlink_add_ip6_addr (lip->lip_vif_index, r6, ia->address_length);
     }));
+
+  if (vif_ns_fd != -1)
+    close (vif_ns_fd);
+
+  if (curr_ns_fd != -1)
+    {
+      clib_setns (curr_ns_fd);
+      close (curr_ns_fd);
+    }
 }
 
 typedef struct
@@ -676,11 +695,27 @@ lcp_itf_pair_find_walk (vnet_main_t *vnm, u32 sw_if_index, void *arg)
   return WALK_CONTINUE;
 }
 
-/* Return the index of the sub-int on thie phy that has the given vlan and proto */
+/* Return the index of the sub-int on the phy that has the given vlan and
+ * proto, optionally in the given 'ns' namespace (which can be NULL, signifying
+ * the 'self' namespace
+ */
 static index_t
-lcp_itf_pair_find_by_outer_vlan (u32 hw_if_index, u16 vlan, bool dot1ad)
+lcp_itf_pair_find_by_outer_vlan (u32 hw_if_index, u8 *ns, u16 vlan,
+				 bool dot1ad)
 {
   lcp_itf_match_t match;
+  int orig_ns_fd = -1;
+  int vif_ns_fd = -1;
+  index_t ret = INDEX_INVALID;
+
+  if (ns && ns[0] != 0)
+    {
+      orig_ns_fd = clib_netns_open (NULL /* self */);
+      vif_ns_fd = clib_netns_open (ns);
+      if (orig_ns_fd == -1 || vif_ns_fd == -1)
+	goto exit;
+      clib_setns (vif_ns_fd);
+    }
 
   clib_memset (&match, 0, sizeof (match));
   match.vlan = vlan;
@@ -691,8 +726,20 @@ lcp_itf_pair_find_by_outer_vlan (u32 hw_if_index, u16 vlan, bool dot1ad)
   vnet_hw_interface_walk_sw (vnet_get_main(), hw_if_index, lcp_itf_pair_find_walk, &match);
 
   if (match.matched_sw_if_index >= vec_len (lip_db_by_phy))
-    return INDEX_INVALID;
-  return lip_db_by_phy[match.matched_sw_if_index];
+    {
+      goto exit;
+    }
+
+  ret = lip_db_by_phy[match.matched_sw_if_index];
+exit:
+  if (orig_ns_fd != -1)
+    {
+      clib_setns (orig_ns_fd);
+      close (orig_ns_fd);
+    }
+  if (vif_ns_fd != -1)
+    close (vif_ns_fd);
+  return ret;
 }
 
 int
@@ -738,7 +785,7 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
     {
       const lcp_itf_pair_t *llip;
       index_t parent_if_index, linux_parent_if_index;
-      int orig_ns_fd, ns_fd;
+      int orig_ns_fd, vif_ns_fd;
       clib_error_t *err;
       u16 outer_vlan, inner_vlan;
       u16 outer_proto, inner_proto;
@@ -766,7 +813,9 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
 	vlan=inner_vlan;
 	proto=inner_proto;
         parent_if_index = lcp_itf_pair_find_by_phy (sw->sup_sw_if_index);
-        linux_parent_if_index = lcp_itf_pair_find_by_outer_vlan (hw->sw_if_index, sw->sub.eth.outer_vlan_id, sw->sub.eth.flags.dot1ad);
+	linux_parent_if_index = lcp_itf_pair_find_by_outer_vlan (
+	  hw->sw_if_index, ns, sw->sub.eth.outer_vlan_id,
+	  sw->sub.eth.flags.dot1ad);
 	if (INDEX_INVALID == linux_parent_if_index) {
           LCP_ITF_PAIR_ERR ("pair_create: can't find LCP for outer vlan %d proto %s on %U",
                             outer_vlan, outer_proto==ETH_P_8021AD?"dot1ad":"dot1q",
@@ -805,17 +854,17 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
       /*
        * see if the requested host interface has already been created
        */
-      orig_ns_fd = ns_fd = -1;
+      orig_ns_fd = vif_ns_fd = -1;
       err = NULL;
 
       if (ns && ns[0] != 0)
 	{
 	  orig_ns_fd = clib_netns_open (NULL /* self */);
-	  ns_fd = clib_netns_open (ns);
-	  if (orig_ns_fd == -1 || ns_fd == -1)
+	  vif_ns_fd = clib_netns_open (ns);
+	  if (orig_ns_fd == -1 || vif_ns_fd == -1)
 	    goto socket_close;
 
-	  clib_setns (ns_fd);
+	  clib_setns (vif_ns_fd);
 	}
 
       vif_index = if_nametoindex ((const char *) host_if_name);
@@ -832,13 +881,6 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
 			   outer_proto, outer_vlan, inner_proto, inner_vlan, host_if_name);
 	  }
 
-	  if (!err && -1 != ns_fd) {
-	    err = vnet_netlink_set_link_netns (vif_index, ns_fd, NULL);
-	    if (err != 0) {
-	      LCP_ITF_PAIR_ERR ("pair_create: cannot set link name:'%s' in namespace:'%s'",
-	                        host_if_name, ns);
-	    }
-	  }
 	  if (!err)
 	    vif_index = if_nametoindex ((char *) host_if_name);
 	}
@@ -860,8 +902,8 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
 	  clib_setns (orig_ns_fd);
 	  close (orig_ns_fd);
 	}
-      if (ns_fd != -1)
-	close (ns_fd);
+      if (vif_ns_fd != -1)
+	close (vif_ns_fd);
 
       if (err)
 	return VNET_API_ERROR_INVALID_ARGUMENT;
