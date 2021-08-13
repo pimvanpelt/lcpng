@@ -637,23 +637,23 @@ lcp_itf_set_interface_addr (const lcp_itf_pair_t *lip)
 	clib_setns (vif_ns_fd);
     }
 
-  /* Display any IP4 addressing info */
+  /* Sync any IP4 addressing info into LCP */
   foreach_ip_interface_address (
     lm4, ia, lip->lip_phy_sw_if_index, 1 /* honor unnumbered */, ({
       ip4_address_t *r4 = ip_interface_address_get_address (lm4, ia);
-      LCP_ITF_PAIR_ERR ("set_interface_addr: %U add ip4 %U/%d",
-			format_lcp_itf_pair, lip, format_ip4_address, r4,
-			ia->address_length);
+      LCP_ITF_PAIR_INFO ("set_interface_addr: %U add ip4 %U/%d",
+			 format_lcp_itf_pair, lip, format_ip4_address, r4,
+			 ia->address_length);
       vnet_netlink_add_ip4_addr (lip->lip_vif_index, r4, ia->address_length);
     }));
 
-  /* Display any IP6 addressing info */
+  /* Sync any IP6 addressing info into LCP */
   foreach_ip_interface_address (
     lm6, ia, lip->lip_phy_sw_if_index, 1 /* honor unnumbered */, ({
       ip6_address_t *r6 = ip_interface_address_get_address (lm6, ia);
-      LCP_ITF_PAIR_ERR ("set_interface_addr: %U add ip6 %U/%d",
-			format_lcp_itf_pair, lip, format_ip6_address, r6,
-			ia->address_length);
+      LCP_ITF_PAIR_INFO ("set_interface_addr: %U add ip6 %U/%d",
+			 format_lcp_itf_pair, lip, format_ip6_address, r6,
+			 ia->address_length);
       vnet_netlink_add_ip6_addr (lip->lip_vif_index, r6, ia->address_length);
     }));
 

@@ -69,7 +69,7 @@ lcp_itf_pair_walk_sync_state_cb (index_t lipi, void *ctx)
 	clib_setns (vif_ns_fd);
     }
 
-  LCP_ITF_PAIR_DBG ("walk_sync_state: lip %U flags %u mtu %u sup-mtu %u",
+  LCP_ITF_PAIR_DBG ("walk_sync_state: %U flags %u mtu %u sup-mtu %u",
 		    format_lcp_itf_pair, lip, sw->flags, sw->mtu[VNET_MTU_L3],
 		    sup_sw->mtu[VNET_MTU_L3]);
   lcp_itf_set_link_state (lip, (sw->flags & VNET_SW_INTERFACE_FLAG_ADMIN_UP));
@@ -79,7 +79,7 @@ lcp_itf_pair_walk_sync_state_cb (index_t lipi, void *ctx)
    */
   if (sup_sw->mtu[VNET_MTU_L3] < sw->mtu[VNET_MTU_L3])
     {
-      LCP_ITF_PAIR_ERR ("walk_sync_state: lip %U flags %u mtu %u sup-mtu %u: "
+      LCP_ITF_PAIR_ERR ("walk_sync_state: %U flags %u mtu %u sup-mtu %u: "
 			"clamping to sup-mtu to satisfy netlink",
 			format_lcp_itf_pair, lip, sw->flags,
 			sw->mtu[VNET_MTU_L3], sup_sw->mtu[VNET_MTU_L3]);
@@ -382,7 +382,7 @@ lcp_itf_ip4_add_del_interface_addr (ip4_main_t *im, uword opaque,
 	clib_setns (vif_ns_fd);
     }
 
-  LCP_ITF_PAIR_ERR ("ip4_addr_%s: %U ip4 %U/%u", is_del ? "del" : "add",
+  LCP_ITF_PAIR_DBG ("ip4_addr_%s: %U ip4 %U/%u", is_del ? "del" : "add",
 		    format_lcp_itf_pair, lip, format_ip4_address, address,
 		    address_length);
 
@@ -427,7 +427,7 @@ lcp_itf_ip6_add_del_interface_addr (ip6_main_t *im, uword opaque,
       if (vif_ns_fd != -1)
 	clib_setns (vif_ns_fd);
     }
-  LCP_ITF_PAIR_ERR ("ip6_addr_%s: %U ip4 %U/%u", is_del ? "del" : "add",
+  LCP_ITF_PAIR_DBG ("ip6_addr_%s: %U ip4 %U/%u", is_del ? "del" : "add",
 		    format_lcp_itf_pair, lip, format_ip6_address, address,
 		    address_length);
   if (is_del)
