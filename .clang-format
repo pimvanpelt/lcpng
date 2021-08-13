@@ -1,0 +1,28 @@
+# Minimal clang-format version is 8
+
+BasedOnStyle: GNU
+UseTab: Always
+SpaceAfterCStyleCast: true
+SortIncludes: false
+AlignConsecutiveMacros: true
+BreakBeforeTernaryOperators: false
+BreakBeforeBinaryOperators: None
+ContinuationIndentWidth: 2
+
+ForEachMacros:
+  - 'clib_bitmap_foreach'
+  - 'pool_foreach'
+  - 'pool_foreach_index'
+  - 'vec_foreach'
+  - 'vec_foreach_backwards'
+  - 'vec_foreach_index'
+  - 'vec_foreach_index_backwards'
+  - 'vlib_foreach_rx_tx'
+  - 'foreach_vlib_main'
+
+StatementMacros:
+  - 'CLIB_MULTIARCH_FN'
+  - 'VLIB_NODE_FN'
+  - 'VNET_DEVICE_CLASS_TX_FN'
+  - '__clib_section'
+  - '__clib_aligned'

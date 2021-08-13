@@ -35,22 +35,24 @@
 /* walk function to copy forward all sw interface link state flags into
  * their counterpart LIP link state.
  */
-static walk_rc_t lcp_itf_pair_walk_sync_state_cb(index_t lipi, void *ctx) {
+static walk_rc_t
+lcp_itf_pair_walk_sync_state_cb (index_t lipi, void *ctx)
+{
   lcp_itf_pair_t *lip;
   vnet_sw_interface_t *phy;
 
-  lip = lcp_itf_pair_get(lipi);
+  lip = lcp_itf_pair_get (lipi);
   if (!lip)
     return WALK_CONTINUE;
 
   phy =
-      vnet_get_sw_interface_or_null(vnet_get_main(), lip->lip_phy_sw_if_index);
+    vnet_get_sw_interface_or_null (vnet_get_main (), lip->lip_phy_sw_if_index);
   if (!phy)
     return WALK_CONTINUE;
 
-  LCP_ITF_PAIR_DBG("walk_sync_state: lip %U flags %u", format_lcp_itf_pair, lip,
-                   phy->flags);
-  lcp_itf_set_link_state(lip, (phy->flags & VNET_SW_INTERFACE_FLAG_ADMIN_UP));
+  LCP_ITF_PAIR_DBG ("walk_sync_state: lip %U flags %u", format_lcp_itf_pair,
+		    lip, phy->flags);
+  lcp_itf_set_link_state (lip, (phy->flags & VNET_SW_INTERFACE_FLAG_ADMIN_UP));
 
   return WALK_CONTINUE;
 }
@@ -71,23 +73,23 @@ lcp_itf_admin_state_change (vnet_main_t * vnm, u32 sw_if_index, u32 flags)
   if (!lip) return NULL;
 
   LCP_ITF_PAIR_INFO ("admin_state_change: %U flags %u", format_lcp_itf_pair, lip, flags);
-  lcp_itf_set_link_state(lip, (flags & VNET_SW_INTERFACE_FLAG_ADMIN_UP));
+  lcp_itf_set_link_state (lip, (flags & VNET_SW_INTERFACE_FLAG_ADMIN_UP));
 
   // Sync PHY carrier changes into TAP
   hi = vnet_get_hw_interface_or_null (vnm, sw_if_index);
   si = vnet_get_sw_interface_or_null (vnm, lip->lip_host_sw_if_index);
   if (!si || !hi) return NULL;
-  LCP_ITF_PAIR_DBG("admin_state_change: hi %U si %U %u",
-                   format_vnet_sw_if_index_name, vnm, hi->hw_if_index,
-                   format_vnet_sw_if_index_name, vnm, si->sw_if_index, flags);
-  tap_set_carrier(si->hw_if_index,
-                  (hi->flags & VNET_HW_INTERFACE_FLAG_LINK_UP));
+  LCP_ITF_PAIR_DBG ("admin_state_change: hi %U si %U %u",
+		    format_vnet_sw_if_index_name, vnm, hi->hw_if_index,
+		    format_vnet_sw_if_index_name, vnm, si->sw_if_index, flags);
+  tap_set_carrier (si->hw_if_index,
+		   (hi->flags & VNET_HW_INTERFACE_FLAG_LINK_UP));
 
   // When Linux changes link on a master interface, all of its children also
   // change. This is not true in VPP, so we are forced to undo that change by
   // walking the sub-interfaces of a phy and syncing their state back into
   // linux. For simplicity, just walk all interfaces.
-  lcp_itf_pair_walk(lcp_itf_pair_walk_sync_state_cb, 0);
+  lcp_itf_pair_walk (lcp_itf_pair_walk_sync_state_cb, 0);
 
   return NULL;
 }   
