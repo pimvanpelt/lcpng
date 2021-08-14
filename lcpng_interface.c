@@ -1076,52 +1076,6 @@ lcp_itf_pair_replace_end (void)
 }
 
 static clib_error_t *
-lcp_itf_phy_add (vnet_main_t *vnm, u32 sw_if_index, u32 is_create)
-{
-  vnet_hw_interface_t *hi;
-  index_t lipi;
-  uword is_sub;
-
-  is_sub = vnet_sw_interface_is_sub (vnm, sw_if_index);
-  LCP_ITF_PAIR_INFO ("phy_%s: phy:%U is_sub:%u", is_create?"add":"del",
-		     format_vnet_sw_if_index_name, vnet_get_main (), sw_if_index,
-		     is_sub);
-  if (is_sub) {
-    vnet_sw_interface_t *si;
-    si = vnet_get_sw_interface_or_null (vnm, sw_if_index);
-    LCP_ITF_PAIR_INFO ("phy_%s: si:%U parent:%U", is_create?"add":"del",
-		     format_vnet_sw_if_index_name, vnet_get_main (), si->sw_if_index,
-		     format_vnet_sw_if_index_name, vnet_get_main (), si->sup_sw_if_index
-		     );
-  }
-
-  hi = vnet_get_hw_interface_or_null (vnm, sw_if_index);
-  if (hi) {
-    LCP_ITF_PAIR_INFO ("phy_%s: hi:%U is_sub:%u", is_create?"add":"del",
-		     format_vnet_sw_if_index_name, vnet_get_main (), hi->sw_if_index,
-		     is_sub);
-  }
-
-  lipi = lcp_itf_pair_find_by_phy (sw_if_index);
-  if (lipi != INDEX_INVALID) {
-    lcp_itf_pair_t *lip;
-    vnet_sw_interface_t *si;
-
-    lip = lcp_itf_pair_get (lipi);
-    si = vnet_get_sw_interface_or_null (vnm, lip->lip_host_sw_if_index);
-    if (!si) {
-      LCP_ITF_PAIR_INFO ("phy_%s: si:%U is_sub:%u", is_create?"add":"del",
-		     format_vnet_sw_if_index_name, vnet_get_main (), si->sw_if_index,
-		     is_sub);
-    }
-  }
-
-  return NULL;
-}
-
-VNET_SW_INTERFACE_ADD_DEL_FUNCTION (lcp_itf_phy_add);
-
-static clib_error_t *
 lcp_itf_pair_init (vlib_main_t *vm)
 {
   ip4_main_t *im4 = &ip4_main;

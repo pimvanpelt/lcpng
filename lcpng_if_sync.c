@@ -447,3 +447,48 @@ lcp_itf_ip6_add_del_interface_addr (ip6_main_t *im, uword opaque,
       close (curr_ns_fd);
     }
 }
+
+static clib_error_t *
+lcp_itf_interface_add_del (vnet_main_t *vnm, u32 sw_if_index, u32 is_create)
+{
+  const vnet_sw_interface_t *sw;
+  const lcp_itf_pair_t *sup_lip;
+  uword is_sub;
+
+  is_sub = vnet_sw_interface_is_sub (vnm, sw_if_index);
+  LCP_ITF_PAIR_DBG ("interface_%s: [%u] sw %U is_sub %u",
+		    is_create ? "add" : "del", sw_if_index,
+		    format_vnet_sw_if_index_name, vnet_get_main (),
+		    sw_if_index, is_sub);
+
+  sw = vnet_get_sw_interface_or_null (vnm, sw_if_index);
+  if (!sw)
+    return NULL;
+  if (!is_sub)
+    return NULL;
+
+  LCP_ITF_PAIR_DBG ("interface_%s: sw %U parent %U", is_create ? "add" : "del",
+		    format_vnet_sw_if_index_name, vnet_get_main (),
+		    sw->sw_if_index, format_vnet_sw_if_index_name,
+		    vnet_get_main (), sw->sup_sw_if_index);
+
+  // If the parent has a LIP and we're in auto-create, create a LIP for this
+  // child
+  sup_lip = lcp_itf_pair_get (lcp_itf_pair_find_by_phy (sw->sup_sw_if_index));
+  if (!sup_lip)
+    return NULL;
+
+  LCP_ITF_PAIR_INFO (
+    "interface_%s: %U has parent %U, enqueueing creation of LCP",
+    is_create ? "add" : "del", format_vnet_sw_if_index_name, vnet_get_main (),
+    sw->sw_if_index, format_lcp_itf_pair, sup_lip);
+
+  // We cannot create the interface here, because the previous interface for
+  // which this is a callback hasn't returned yet.
+  // lcp_itf_pair_create(sw->sw_if_index, (u8 *)"foo", LCP_ITF_HOST_TAP,
+  // sup_lip->lip_namespace, NULL);
+
+  return NULL;
+}
+
+VNET_SW_INTERFACE_ADD_DEL_FUNCTION (lcp_itf_interface_add_del);
