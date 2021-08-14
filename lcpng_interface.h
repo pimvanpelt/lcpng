@@ -164,6 +164,12 @@ lcp_itf_pair_find_by_host (u32 host_sw_if_index)
   return (lip_db_by_host[host_sw_if_index]);
 }
 
+/**
+ * sub-interface auto creation/deletion for LCP
+ */
+void lcp_set_auto_subint (u8 is_auto);
+int lcp_auto_subint (void);
+
 typedef void (*lcp_itf_pair_add_cb_t) (lcp_itf_pair_t *);
 typedef void (*lcp_itf_pair_del_cb_t) (lcp_itf_pair_t *);
 

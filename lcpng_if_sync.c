@@ -452,14 +452,16 @@ static clib_error_t *
 lcp_itf_interface_add_del (vnet_main_t *vnm, u32 sw_if_index, u32 is_create)
 {
   const vnet_sw_interface_t *sw;
-  const lcp_itf_pair_t *sup_lip;
   uword is_sub;
 
   is_sub = vnet_sw_interface_is_sub (vnm, sw_if_index);
-  LCP_ITF_PAIR_DBG ("interface_%s: [%u] sw %U is_sub %u",
+  LCP_ITF_PAIR_DBG ("interface_%s: [%u] sw %U is_sub %u auto-subint %u",
 		    is_create ? "add" : "del", sw_if_index,
 		    format_vnet_sw_if_index_name, vnet_get_main (),
-		    sw_if_index, is_sub);
+		    sw_if_index, is_sub, lcp_auto_subint ());
+
+  if (!lcp_auto_subint ())
+    return NULL;
 
   sw = vnet_get_sw_interface_or_null (vnm, sw_if_index);
   if (!sw)
@@ -472,21 +474,39 @@ lcp_itf_interface_add_del (vnet_main_t *vnm, u32 sw_if_index, u32 is_create)
 		    sw->sw_if_index, format_vnet_sw_if_index_name,
 		    vnet_get_main (), sw->sup_sw_if_index);
 
-  // If the parent has a LIP and we're in auto-create, create a LIP for this
-  // child
-  sup_lip = lcp_itf_pair_get (lcp_itf_pair_find_by_phy (sw->sup_sw_if_index));
-  if (!sup_lip)
-    return NULL;
+  if (is_create)
+    {
+      const lcp_itf_pair_t *sup_lip;
+      u8 *name = 0;
 
-  LCP_ITF_PAIR_INFO (
-    "interface_%s: %U has parent %U, enqueueing creation of LCP",
-    is_create ? "add" : "del", format_vnet_sw_if_index_name, vnet_get_main (),
-    sw->sw_if_index, format_lcp_itf_pair, sup_lip);
+      // If the parent has a LIP auto-create a LIP for this interface
+      sup_lip =
+	lcp_itf_pair_get (lcp_itf_pair_find_by_phy (sw->sup_sw_if_index));
+      if (!sup_lip)
+	return NULL;
 
-  // We cannot create the interface here, because the previous interface for
-  // which this is a callback hasn't returned yet.
-  // lcp_itf_pair_create(sw->sw_if_index, (u8 *)"foo", LCP_ITF_HOST_TAP,
-  // sup_lip->lip_namespace, NULL);
+      name = format (name, "%s.%d", sup_lip->lip_host_name, sw->sub.id);
+
+      LCP_ITF_PAIR_INFO (
+	"interface_%s: %U has parent %U, auto-creating LCP with host-if %s",
+	is_create ? "add" : "del", format_vnet_sw_if_index_name,
+	vnet_get_main (), sw->sw_if_index, format_lcp_itf_pair, sup_lip, name);
+
+      lcp_itf_pair_create (sw->sw_if_index, name, LCP_ITF_HOST_TAP,
+			   sup_lip->lip_namespace, NULL);
+
+      vec_free (name);
+    }
+  else
+    {
+      const lcp_itf_pair_t *lip;
+
+      // If the interface has a LIP, auto-delete it
+      lip = lcp_itf_pair_get (lcp_itf_pair_find_by_phy (sw_if_index));
+      if (!lip)
+	return NULL;
+      lcp_itf_pair_delete (sw_if_index);
+    }
 
   return NULL;
 }

@@ -420,10 +420,11 @@ lcp_itf_pair_del (u32 phy_sw_if_index)
 
   lip = lcp_itf_pair_get (lipi);
 
-  LCP_ITF_PAIR_INFO ("pair delete: {%U, %U, %s}", format_vnet_sw_if_index_name,
-		     vnet_get_main (), lip->lip_phy_sw_if_index,
-		     format_vnet_sw_if_index_name, vnet_get_main (),
-		     lip->lip_host_sw_if_index, lip->lip_host_name);
+  LCP_ITF_PAIR_INFO (
+    "pair_del: host:%U phy:%U host_if:%s vif:%d ns:%s",
+    format_vnet_sw_if_index_name, vnet_get_main (), lip->lip_host_sw_if_index,
+    format_vnet_sw_if_index_name, vnet_get_main (), lip->lip_phy_sw_if_index,
+    lip->lip_host_name, lip->lip_vif_index, lip->lip_namespace);
 
   /* invoke registered callbacks for pair deletion */
   vec_foreach (vft, lcp_itf_vfts)
@@ -463,7 +464,8 @@ lcp_itf_pair_del (u32 phy_sw_if_index)
   hash_unset (lip_db_by_vif, lip->lip_vif_index);
 
   vec_free (lip->lip_host_name);
-  vec_free (lip->lip_namespace);
+  if (lip->lip_namespace)
+    free (lip->lip_namespace);
   pool_put (lcp_itf_pair_pool, lip);
 
   return 0;
@@ -474,24 +476,46 @@ lcp_itf_pair_delete_by_index (index_t lipi)
 {
   u32 host_sw_if_index;
   lcp_itf_pair_t *lip;
-  u8 *host_name;
+  u8 *host_name = 0;
+  char *ns = 0;
 
   lip = lcp_itf_pair_get (lipi);
 
   host_name = vec_dup (lip->lip_host_name);
+  ns = strdup ((const char *) lip->lip_namespace);
   host_sw_if_index = lip->lip_host_sw_if_index;
 
   lcp_itf_pair_del (lip->lip_phy_sw_if_index);
 
   if (vnet_sw_interface_is_sub (vnet_get_main (), host_sw_if_index))
     {
+      int curr_ns_fd = -1;
+      int vif_ns_fd = -1;
+      if (ns)
+	{
+	  curr_ns_fd = clib_netns_open (NULL /* self */);
+	  vif_ns_fd = clib_netns_open ((u8 *) ns);
+	  if (vif_ns_fd != -1)
+	    clib_setns (vif_ns_fd);
+	}
+
       lcp_netlink_del_link ((const char *) host_name);
+      if (vif_ns_fd != -1)
+	close (vif_ns_fd);
+
+      if (curr_ns_fd != -1)
+	{
+	  clib_setns (curr_ns_fd);
+	  close (curr_ns_fd);
+	}
+
       vnet_delete_sub_interface (host_sw_if_index);
     }
   else
     tap_delete_if (vlib_get_main (), host_sw_if_index);
 
   vec_free (host_name);
+  free (ns);
 }
 
 int
@@ -524,29 +548,30 @@ lcp_itf_pair_walk (lcp_itf_pair_walk_cb_t cb, void *ctx)
 static clib_error_t *
 lcp_itf_pair_config (vlib_main_t *vm, unformat_input_t *input)
 {
-  u8 *phy;
-  u8 *ns;
-  u8 *netns;
+  u8 *default_ns;
 
-  phy = ns = netns = NULL;
+  default_ns = NULL;
 
   while (unformat_check_input (input) != UNFORMAT_END_OF_INPUT)
     {
-      if (unformat (input, "netns %v", &netns))
+      if (unformat (input, "default netns %v", &default_ns))
 	{
-	  vec_add1 (netns, 0);
-          if (lcp_set_default_ns(netns) < 0) {
-            return clib_error_return(
-                0, "lcpng namespace must be less than %d characters",
-                LCP_NS_LEN);
-          }
-        }
+	  vec_add1 (default_ns, 0);
+	  if (lcp_set_default_ns (default_ns) < 0)
+	    {
+	      return clib_error_return (
+		0, "linux-cp namespace must be less than %d characters",
+		LCP_NS_LEN);
+	    }
+	}
+      else if (unformat (input, "lcp-auto-subint"))
+	lcp_set_auto_subint (1 /* is_auto */);
       else
-	return clib_error_return (0, "interfaces not found");
+	return clib_error_return (0, "unknown input `%U'",
+				  format_unformat_error, input);
     }
 
-  vec_free (phy);
-  vec_free (netns);
+  vec_free (default_ns);
 
   return NULL;
 }

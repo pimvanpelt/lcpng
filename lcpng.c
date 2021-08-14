@@ -69,6 +69,22 @@ int lcp_set_default_ns(u8 *ns) {
     return 0;
 }
 
+void
+lcp_set_auto_subint (u8 is_auto)
+{
+  lcp_main_t *lcpm = &lcp_main;
+
+  lcpm->auto_subint = (is_auto != 0);
+}
+
+int
+lcp_auto_subint (void)
+{
+  lcp_main_t *lcpm = &lcp_main;
+
+  return lcpm->auto_subint;
+}
+
 /*
  * fd.io coding-style-patch-verification: ON
  *
