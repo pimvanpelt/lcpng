@@ -700,30 +700,31 @@ lcp_itf_set_interface_addr (const lcp_itf_pair_t *lip)
 
 typedef struct
 {
-  u32 hw_if_index;
-  u16 vlan;
+  u32 sup_if_index;
+  u32 vlan;
   bool dot1ad;
 
   u32 matched_sw_if_index;
 } lcp_itf_match_t;
 
-
 static walk_rc_t
-lcp_itf_pair_find_walk (vnet_main_t *vnm, u32 sw_if_index, void *arg)
+lcp_itf_pair_find_walk (vnet_main_t *vnm, vnet_sw_interface_t *sw, void *arg)
 {
   lcp_itf_match_t *match = arg;
-  const vnet_sw_interface_t *sw;
 
-  sw = vnet_get_sw_interface_or_null (vnm, sw_if_index);
-  if (sw && (sw->sub.eth.inner_vlan_id == 0) && (sw->sub.eth.outer_vlan_id == match->vlan) && (sw->sub.eth.flags.dot1ad == match->dot1ad)) {
+  if ((sw->sub.eth.inner_vlan_id == 0) &&
+      (sw->sub.eth.outer_vlan_id == match->vlan) &&
+      (sw->sub.eth.flags.dot1ad == match->dot1ad) &&
+      (sw->sup_sw_if_index == match->sup_if_index))
+    {
       LCP_ITF_PAIR_DBG (
-	"find_walk: found match %U outer %d dot1ad %d inner-dot1q %d",
-	format_vnet_sw_if_index_name, vnet_get_main (), sw_if_index,
+	"find_walk: found match outer %d dot1ad %d inner-dot1q %d parent %U",
 	sw->sub.eth.outer_vlan_id, sw->sub.eth.flags.dot1ad,
-	sw->sub.eth.inner_vlan_id);
-      match->matched_sw_if_index = sw_if_index;
+	sw->sub.eth.inner_vlan_id, format_vnet_sw_if_index_name,
+	vnet_get_main (), sw->sup_sw_if_index);
+      match->matched_sw_if_index = sw->sw_if_index;
       return WALK_STOP;
-  }
+    }
 
   return WALK_CONTINUE;
 }
@@ -733,7 +734,7 @@ lcp_itf_pair_find_walk (vnet_main_t *vnm, u32 sw_if_index, void *arg)
  * the 'self' namespace
  */
 static index_t
-lcp_itf_pair_find_by_outer_vlan (u32 hw_if_index, u8 *ns, u16 vlan,
+lcp_itf_pair_find_by_outer_vlan (u32 sup_if_index, u8 *ns, u16 vlan,
 				 bool dot1ad)
 {
   lcp_itf_match_t match;
@@ -753,10 +754,10 @@ lcp_itf_pair_find_by_outer_vlan (u32 hw_if_index, u8 *ns, u16 vlan,
   clib_memset (&match, 0, sizeof (match));
   match.vlan = vlan;
   match.dot1ad = dot1ad;
-  match.hw_if_index = hw_if_index;
+  match.sup_if_index = sup_if_index;
   match.matched_sw_if_index = INDEX_INVALID;
 
-  vnet_hw_interface_walk_sw (vnet_get_main(), hw_if_index, lcp_itf_pair_find_walk, &match);
+  vnet_sw_interface_walk (vnet_get_main (), lcp_itf_pair_find_walk, &match);
 
   if (match.matched_sw_if_index >= vec_len (lip_db_by_phy))
     {
@@ -847,7 +848,7 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
 	proto=inner_proto;
         parent_if_index = lcp_itf_pair_find_by_phy (sw->sup_sw_if_index);
 	linux_parent_if_index = lcp_itf_pair_find_by_outer_vlan (
-	  hw->sw_if_index, ns, sw->sub.eth.outer_vlan_id,
+	  sw->sup_sw_if_index, ns, sw->sub.eth.outer_vlan_id,
 	  sw->sub.eth.flags.dot1ad);
 	if (INDEX_INVALID == linux_parent_if_index) {
           LCP_ITF_PAIR_ERR ("pair_create: can't find LCP for outer vlan %d proto %s on %U",
