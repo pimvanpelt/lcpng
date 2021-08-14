@@ -26,10 +26,16 @@
 extern vlib_log_class_t lcp_itf_pair_logger;
 
 #define LCP_ITF_PAIR_DBG(...)                                                 \
-  vlib_log_notice (lcp_itf_pair_logger, __VA_ARGS__);
+  vlib_log_debug (lcp_itf_pair_logger, __VA_ARGS__);
 
 #define LCP_ITF_PAIR_INFO(...)                                                \
+  vlib_log_info (lcp_itf_pair_logger, __VA_ARGS__);
+
+#define LCP_ITF_PAIR_NOTICE(...)                                                \
   vlib_log_notice (lcp_itf_pair_logger, __VA_ARGS__);
+
+#define LCP_ITF_PAIR_WARN(...)                                                \
+  vlib_log_warn (lcp_itf_pair_logger, __VA_ARGS__);
 
 #define LCP_ITF_PAIR_ERR(...)                                                \
   vlib_log_err (lcp_itf_pair_logger, __VA_ARGS__);
@@ -186,6 +192,14 @@ void lcp_itf_ip6_add_del_interface_addr (ip6_main_t *im, uword opaque,
 					 ip6_address_t *address,
 					 u32 address_length,
 					 u32 if_address_index, u32 is_del);
+
+/* Sync all state from VPP to Linux device
+ *
+ * Note: in some circumstances, this syncer will (have to) make changes to
+ * the VPP interface, for example if its MTU is greater than its parent.
+ * See the function for rationale.
+ */
+void lcp_itf_pair_sync_state (lcp_itf_pair_t *lip);
 
 /*
  * fd.io coding-style-patch-verification: ON

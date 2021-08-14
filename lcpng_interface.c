@@ -129,8 +129,7 @@ lcp_itf_pair_show (u32 phy_sw_if_index)
 
   vm = vlib_get_main ();
   ns = lcp_get_default_ns();
-  vlib_cli_output (vm, "lcpng netns '%s'\n",
-		   ns ? (char *) ns : "<unset>");
+  vlib_cli_output (vm, "lcp netns %s\n", ns ? (char *) ns : "<unset>");
 
   if (phy_sw_if_index == ~0)
     {
@@ -242,7 +241,7 @@ lcp_itf_pair_add (u32 host_sw_if_index, u32 phy_sw_if_index, u8 *host_name,
 
   lipi = lcp_itf_pair_find_by_phy (phy_sw_if_index);
 
-  LCP_ITF_PAIR_INFO ("add: host:%U phy:%U, host_if:%v vif:%d ns:%v",
+  LCP_ITF_PAIR_INFO ("pair_add: host:%U phy:%U, host_if:%v vif:%d ns:%s",
 		     format_vnet_sw_if_index_name, vnet_get_main (),
 		     host_sw_if_index, format_vnet_sw_if_index_name,
 		     vnet_get_main (), phy_sw_if_index, host_name, host_index,
@@ -269,7 +268,11 @@ lcp_itf_pair_add (u32 host_sw_if_index, u32 phy_sw_if_index, u8 *host_name,
   lip->lip_host_name = vec_dup (host_name);
   lip->lip_host_type = host_type;
   lip->lip_vif_index = host_index;
-  lip->lip_namespace = vec_dup (ns);
+
+  // TODO(pim) - understand why vec_dup(ns) returns 'nil' here
+  lip->lip_namespace = 0;
+  if (ns && ns[0] != 0)
+    lip->lip_namespace = (u8 *) strdup ((const char *) ns);
 
   if (lip->lip_host_sw_if_index == ~0)
     return 0;
@@ -629,6 +632,9 @@ lcp_itf_set_interface_addr (const lcp_itf_pair_t *lip)
   int vif_ns_fd = -1;
   int curr_ns_fd = -1;
 
+  if (!lip)
+    return;
+
   if (lip->lip_namespace)
     {
       curr_ns_fd = clib_netns_open (NULL /* self */);
@@ -685,11 +691,13 @@ lcp_itf_pair_find_walk (vnet_main_t *vnm, u32 sw_if_index, void *arg)
 
   sw = vnet_get_sw_interface_or_null (vnm, sw_if_index);
   if (sw && (sw->sub.eth.inner_vlan_id == 0) && (sw->sub.eth.outer_vlan_id == match->vlan) && (sw->sub.eth.flags.dot1ad == match->dot1ad)) {
-    LCP_ITF_PAIR_DBG ("pair_create: found match %U outer %d dot1ad %d inner-dot1q %d",
-                      format_vnet_sw_if_index_name, vnet_get_main (), sw_if_index,
-		      sw->sub.eth.outer_vlan_id, sw->sub.eth.flags.dot1ad, sw->sub.eth.inner_vlan_id);
-    match->matched_sw_if_index = sw_if_index;
-    return WALK_STOP;
+      LCP_ITF_PAIR_DBG (
+	"find_walk: found match %U outer %d dot1ad %d inner-dot1q %d",
+	format_vnet_sw_if_index_name, vnet_get_main (), sw_if_index,
+	sw->sub.eth.outer_vlan_id, sw->sub.eth.flags.dot1ad,
+	sw->sub.eth.inner_vlan_id);
+      match->matched_sw_if_index = sw_if_index;
+      return WALK_STOP;
   }
 
   return WALK_CONTINUE;
@@ -752,7 +760,7 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
   u32 vif_index = 0, host_sw_if_index;
   const vnet_sw_interface_t *sw;
   const vnet_hw_interface_t *hw;
-  const lcp_itf_pair_t *lip;
+  lcp_itf_pair_t *lip;
 
   if (!vnet_sw_if_index_is_api_valid (phy_sw_if_index)) {
     LCP_ITF_PAIR_ERR ("pair_create: invalid phy index %u", phy_sw_if_index);
@@ -936,7 +944,9 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
 	}
 
       if (ns && ns[0] != 0)
-	args.host_namespace = ns;
+	{
+	  args.host_namespace = ns;
+	}
 
       vm = vlib_get_main ();
       tap_create_if (vm, &args);
@@ -983,17 +993,13 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
 
   if (!vif_index)
     {
-      LCP_ITF_PAIR_INFO ("failed pair add (no vif index): {%U, %U, %s}",
-			 format_vnet_sw_if_index_name, vnet_get_main (),
-			 phy_sw_if_index, format_vnet_sw_if_index_name,
-			 vnet_get_main (), host_sw_if_index, host_if_name);
+      LCP_ITF_PAIR_ERR (
+	"pair_create: failed pair add (no vif index): {%U, %U, %s}",
+	format_vnet_sw_if_index_name, vnet_get_main (), phy_sw_if_index,
+	format_vnet_sw_if_index_name, vnet_get_main (), host_sw_if_index,
+	host_if_name);
       return -1;
     }
-
-  LCP_ITF_PAIR_INFO ("pair create: {%U, %U, %s}",
-		     format_vnet_sw_if_index_name, vnet_get_main (), phy_sw_if_index,
-		     format_vnet_sw_if_index_name, vnet_get_main (), host_sw_if_index,
-		     host_if_name);
 
   lcp_itf_pair_add (host_sw_if_index, phy_sw_if_index, host_if_name, vif_index,
 		    host_if_type, ns);
@@ -1005,15 +1011,7 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
    */
   vnet_sw_interface_admin_up (vnm, host_sw_if_index);
   lip = lcp_itf_pair_get (lcp_itf_pair_find_by_vif(vif_index));
-  LCP_ITF_PAIR_INFO ("pair_create: copy link state %u from %U to %U",
-		  sw->flags,
-		  format_vnet_sw_if_index_name, vnet_get_main (), sw->sw_if_index,
-		  format_lcp_itf_pair, lip);
-  lcp_itf_set_link_state (lip, sw->flags & VNET_SW_INTERFACE_FLAG_ADMIN_UP);
-
-  /* Copy L3 addresses from VPP into the host side, if any.
-   */
-  lcp_itf_set_interface_addr (lip);
+  lcp_itf_pair_sync_state (lip);
 
   if (host_sw_if_indexp)
     *host_sw_if_indexp = host_sw_if_index;
