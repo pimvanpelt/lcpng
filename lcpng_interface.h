@@ -31,7 +31,7 @@ extern vlib_log_class_t lcp_itf_pair_logger;
 #define LCP_ITF_PAIR_INFO(...)                                                \
   vlib_log_info (lcp_itf_pair_logger, __VA_ARGS__);
 
-#define LCP_ITF_PAIR_NOTICE(...)                                                \
+#define LCP_ITF_PAIR_NOTICE(...)                                              \
   vlib_log_notice (lcp_itf_pair_logger, __VA_ARGS__);
 
 #define LCP_ITF_PAIR_WARN(...)                                                \

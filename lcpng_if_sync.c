@@ -75,9 +75,9 @@ lcp_itf_pair_sync_state (lcp_itf_pair_t *lip)
   if (sup_sw->mtu[VNET_MTU_L3] < sw->mtu[VNET_MTU_L3])
     {
       LCP_ITF_PAIR_WARN ("sync_state: %U flags %u mtu %u sup-mtu %u: "
-			"clamping to sup-mtu to satisfy netlink",
-			format_lcp_itf_pair, lip, sw->flags,
-			sw->mtu[VNET_MTU_L3], sup_sw->mtu[VNET_MTU_L3]);
+			 "clamping to sup-mtu to satisfy netlink",
+			 format_lcp_itf_pair, lip, sw->flags,
+			 sw->mtu[VNET_MTU_L3], sup_sw->mtu[VNET_MTU_L3]);
       vnet_sw_interface_set_mtu (vnet_get_main (), sw->sw_if_index,
 				 sup_sw->mtu[VNET_MTU_L3]);
       vnet_netlink_set_link_mtu (lip->lip_vif_index, sup_sw->mtu[VNET_MTU_L3]);
