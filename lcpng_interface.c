@@ -168,23 +168,6 @@ lcp_itf_pair_find_by_vif (u32 vif_index)
   return INDEX_INVALID;
 }
 
-int
-lcp_itf_pair_add_sub (u32 vif, u8 *host_if_name, u32 sub_sw_if_index,
-		      u32 phy_sw_if_index, u8 *ns)
-{
-  lcp_itf_pair_t *lip;
-
-  lip = lcp_itf_pair_get (lcp_itf_pair_find_by_phy (phy_sw_if_index));
-  if (!lip) {
-    LCP_ITF_PAIR_ERR ("lcp_itf_pair_add_sub: can't find LCP of parent %U",
-		     format_vnet_sw_if_index_name, vnet_get_main (), phy_sw_if_index);
-    return VNET_API_ERROR_INVALID_SW_IF_INDEX;
-  }
-
-  return lcp_itf_pair_add (lip->lip_host_sw_if_index, sub_sw_if_index,
-			   host_if_name, vif, lip->lip_host_type, ns);
-}
-
 const char *lcp_itf_l3_feat_names[N_LCP_ITF_HOST][N_AF] = {
     [LCP_ITF_HOST_TAP] =
         {

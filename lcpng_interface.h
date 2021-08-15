@@ -108,8 +108,6 @@ extern index_t lcp_itf_pair_find_by_vif (u32 vif_index);
 extern int lcp_itf_pair_add (u32 host_sw_if_index, u32 phy_sw_if_index,
 			     u8 *host_name, u32 host_index,
 			     lip_host_type_t host_type, u8 *ns);
-extern int lcp_itf_pair_add_sub (u32 vif, u8 *host_name, u32 sub_sw_if_index,
-				 u32 phy_sw_if_index, u8 *ns);
 extern int lcp_itf_pair_del (u32 phy_sw_if_index);
 
 /**
