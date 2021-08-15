@@ -70,19 +70,19 @@ int lcp_set_default_ns(u8 *ns) {
 }
 
 void
-lcp_set_auto_subint (u8 is_auto)
+lcp_set_lcp_auto_subint (u8 is_auto)
 {
   lcp_main_t *lcpm = &lcp_main;
 
-  lcpm->auto_subint = (is_auto != 0);
+  lcpm->lcp_auto_subint = (is_auto != 0);
 }
 
 int
-lcp_auto_subint (void)
+lcp_lcp_auto_subint (void)
 {
   lcp_main_t *lcpm = &lcp_main;
 
-  return lcpm->auto_subint;
+  return lcpm->lcp_auto_subint;
 }
 
 /*

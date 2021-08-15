@@ -455,12 +455,12 @@ lcp_itf_interface_add_del (vnet_main_t *vnm, u32 sw_if_index, u32 is_create)
   uword is_sub;
 
   is_sub = vnet_sw_interface_is_sub (vnm, sw_if_index);
-  LCP_ITF_PAIR_DBG ("interface_%s: [%u] sw %U is_sub %u auto-subint %u",
+  LCP_ITF_PAIR_DBG ("interface_%s: [%u] sw %U is_sub %u lcp-auto-subint %u",
 		    is_create ? "add" : "del", sw_if_index,
 		    format_vnet_sw_if_index_name, vnet_get_main (),
-		    sw_if_index, is_sub, lcp_auto_subint ());
+		    sw_if_index, is_sub, lcp_lcp_auto_subint ());
 
-  if (!lcp_auto_subint ())
+  if (!lcp_lcp_auto_subint ())
     return NULL;
 
   sw = vnet_get_sw_interface_or_null (vnm, sw_if_index);

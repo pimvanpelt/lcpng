@@ -129,7 +129,9 @@ lcp_itf_pair_show (u32 phy_sw_if_index)
 
   vm = vlib_get_main ();
   ns = lcp_get_default_ns();
-  vlib_cli_output (vm, "lcp netns %s\n", ns ? (char *) ns : "<unset>");
+  vlib_cli_output (vm, "lcp default netns %s\n", ns ? (char *) ns : "<unset>");
+  vlib_cli_output (vm, "lcp lcp-auto-subint %s\n",
+		   lcp_lcp_auto_subint () ? "on" : "off");
 
   if (phy_sw_if_index == ~0)
     {
@@ -565,7 +567,7 @@ lcp_itf_pair_config (vlib_main_t *vm, unformat_input_t *input)
 	    }
 	}
       else if (unformat (input, "lcp-auto-subint"))
-	lcp_set_auto_subint (1 /* is_auto */);
+	lcp_set_lcp_auto_subint (1 /* is_auto */);
       else
 	return clib_error_return (0, "unknown input `%U'",
 				  format_unformat_error, input);
