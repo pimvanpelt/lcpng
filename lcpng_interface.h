@@ -170,6 +170,12 @@ lcp_itf_pair_find_by_host (u32 host_sw_if_index)
 void lcp_set_lcp_auto_subint (u8 is_auto);
 int lcp_lcp_auto_subint (void);
 
+/**
+ * sync state changes from VPP into LCP
+ */
+void lcp_set_lcp_sync (u8 is_auto);
+int lcp_lcp_sync (void);
+
 typedef void (*lcp_itf_pair_add_cb_t) (lcp_itf_pair_t *);
 typedef void (*lcp_itf_pair_del_cb_t) (lcp_itf_pair_t *);
 
@@ -199,13 +205,14 @@ void lcp_itf_ip6_add_del_interface_addr (ip6_main_t *im, uword opaque,
 					 u32 address_length,
 					 u32 if_address_index, u32 is_del);
 
-/* Sync all state from VPP to Linux device
+/* Sync all state from VPP to a specific Linux device, or all of them.
  *
  * Note: in some circumstances, this syncer will (have to) make changes to
  * the VPP interface, for example if its MTU is greater than its parent.
  * See the function for rationale.
  */
 void lcp_itf_pair_sync_state (lcp_itf_pair_t *lip);
+void lcp_itf_pair_sync_state_all ();
 
 /*
  * fd.io coding-style-patch-verification: ON

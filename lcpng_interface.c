@@ -132,6 +132,7 @@ lcp_itf_pair_show (u32 phy_sw_if_index)
   vlib_cli_output (vm, "lcp default netns %s\n", ns ? (char *) ns : "<unset>");
   vlib_cli_output (vm, "lcp lcp-auto-subint %s\n",
 		   lcp_lcp_auto_subint () ? "on" : "off");
+  vlib_cli_output (vm, "lcp lcp-sync %s\n", lcp_lcp_sync () ? "on" : "off");
 
   if (phy_sw_if_index == ~0)
     {
@@ -568,6 +569,8 @@ lcp_itf_pair_config (vlib_main_t *vm, unformat_input_t *input)
 	}
       else if (unformat (input, "lcp-auto-subint"))
 	lcp_set_lcp_auto_subint (1 /* is_auto */);
+      else if (unformat (input, "lcp-sync"))
+	lcp_set_lcp_sync (1 /* is_auto */);
       else
 	return clib_error_return (0, "unknown input `%U'",
 				  format_unformat_error, input);
@@ -1033,13 +1036,16 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
 		    host_if_type, ns);
 
   /*
-   * Copy the link state from VPP into the host side.
-   * The TAP is shared by many interfaces, always keep it up.
+   * Copy the link state from VPP into the host side, if lcp-sync is on.
    * This controls whether the host can RX/TX.
+   * The TAP is shared by many interfaces, always keep it up.
    */
   vnet_sw_interface_admin_up (vnm, host_sw_if_index);
-  lip = lcp_itf_pair_get (lcp_itf_pair_find_by_vif(vif_index));
-  lcp_itf_pair_sync_state (lip);
+  if (lcp_lcp_sync ())
+    {
+      lip = lcp_itf_pair_get (lcp_itf_pair_find_by_vif (vif_index));
+      lcp_itf_pair_sync_state (lip);
+    }
 
   if (host_sw_if_indexp)
     *host_sw_if_indexp = host_sw_if_index;

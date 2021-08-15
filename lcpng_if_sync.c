@@ -48,6 +48,10 @@ lcp_itf_pair_sync_state (lcp_itf_pair_t *lip)
   vnet_sw_interface_t *sup_sw;
   int curr_ns_fd = -1;
   int vif_ns_fd = -1;
+  u32 mtu;
+
+  if (!lcp_lcp_sync ())
+    return;
 
   sw =
     vnet_get_sw_interface_or_null (vnet_get_main (), lip->lip_phy_sw_if_index);
@@ -72,16 +76,17 @@ lcp_itf_pair_sync_state (lcp_itf_pair_t *lip)
   /* Linux will clamp MTU of children when the parent is lower. VPP is fine
    * with differing MTUs. Reconcile any differences
    */
+  mtu = sw->mtu[VNET_MTU_L3];
   if (sup_sw->mtu[VNET_MTU_L3] < sw->mtu[VNET_MTU_L3])
     {
       LCP_ITF_PAIR_WARN ("sync_state: %U flags %u mtu %u sup-mtu %u: "
 			 "clamping to sup-mtu to satisfy netlink",
 			 format_lcp_itf_pair, lip, sw->flags,
 			 sw->mtu[VNET_MTU_L3], sup_sw->mtu[VNET_MTU_L3]);
-      vnet_sw_interface_set_mtu (vnet_get_main (), sw->sw_if_index,
-				 sup_sw->mtu[VNET_MTU_L3]);
-      vnet_netlink_set_link_mtu (lip->lip_vif_index, sup_sw->mtu[VNET_MTU_L3]);
+      mtu = sup_sw->mtu[VNET_MTU_L3];
     }
+  vnet_sw_interface_set_mtu (vnet_get_main (), sw->sw_if_index, mtu);
+  vnet_netlink_set_link_mtu (lip->lip_vif_index, mtu);
 
   /* Linux will remove IPv6 addresses on children when the master state
    * goes down, so we ensure all IPv4/IPv6 addresses are synced.
@@ -101,7 +106,7 @@ lcp_itf_pair_sync_state (lcp_itf_pair_t *lip)
 }
 
 static walk_rc_t
-lcp_itf_pair_walk_sync_state_cb (index_t lipi, void *ctx)
+lcp_itf_pair_walk_sync_state_all_cb (index_t lipi, void *ctx)
 {
   lcp_itf_pair_t *lip;
   lip = lcp_itf_pair_get (lipi);
@@ -110,6 +115,12 @@ lcp_itf_pair_walk_sync_state_cb (index_t lipi, void *ctx)
 
   lcp_itf_pair_sync_state (lip);
   return WALK_CONTINUE;
+}
+
+void
+lcp_itf_pair_sync_state_all ()
+{
+  lcp_itf_pair_walk (lcp_itf_pair_walk_sync_state_all_cb, 0);
 }
 
 static clib_error_t *
@@ -121,6 +132,9 @@ lcp_itf_admin_state_change (vnet_main_t * vnm, u32 sw_if_index, u32 flags)
 
   int curr_ns_fd = -1;
   int vif_ns_fd = -1;
+
+  if (!lcp_lcp_sync ())
+    return 0;
 
   LCP_ITF_PAIR_DBG ("admin_state_change: sw %U %u",
 		  format_vnet_sw_if_index_name, vnm, sw_if_index,
@@ -163,7 +177,7 @@ lcp_itf_admin_state_change (vnet_main_t * vnm, u32 sw_if_index, u32 flags)
   // change. This is not true in VPP, so we are forced to undo that change by
   // walking the sub-interfaces of a phy and syncing their state back into
   // linux. For simplicity, just walk all interfaces.
-  lcp_itf_pair_walk (lcp_itf_pair_walk_sync_state_cb, 0);
+  lcp_itf_pair_sync_state_all ();
 
   return NULL;
 }   
@@ -177,6 +191,9 @@ lcp_itf_mtu_change (vnet_main_t *vnm, u32 sw_if_index, u32 flags)
   vnet_sw_interface_t *sw;
   int curr_ns_fd = -1;
   int vif_ns_fd = -1;
+
+  if (!lcp_lcp_sync ())
+    return 0;
 
   LCP_ITF_PAIR_DBG ("mtu_change: sw %U %u", format_vnet_sw_if_index_name, vnm,
 		    sw_if_index, flags);
@@ -215,7 +232,7 @@ lcp_itf_mtu_change (vnet_main_t *vnm, u32 sw_if_index, u32 flags)
   // so we are forced to undo that change by walking the sub-interfaces of
   // a phy and syncing their state back into linux.
   // For simplicity, just walk all interfaces.
-  lcp_itf_pair_walk (lcp_itf_pair_walk_sync_state_cb, 0);
+  lcp_itf_pair_sync_state_all ();
 
   return NULL;
 }
@@ -369,6 +386,9 @@ lcp_itf_ip4_add_del_interface_addr (ip4_main_t *im, uword opaque,
   int curr_ns_fd = -1;
   int vif_ns_fd = -1;
 
+  if (!lcp_lcp_sync ())
+    return;
+
   LCP_ITF_PAIR_DBG ("ip4_addr_%s: si:%U %U/%u", is_del ? "del" : "add",
 		    format_vnet_sw_if_index_name, vnet_get_main (),
 		    sw_if_index, format_ip4_address, address, address_length);
@@ -414,6 +434,9 @@ lcp_itf_ip6_add_del_interface_addr (ip6_main_t *im, uword opaque,
   const lcp_itf_pair_t *lip;
   int curr_ns_fd = -1;
   int vif_ns_fd = -1;
+
+  if (!lcp_lcp_sync ())
+    return;
 
   LCP_ITF_PAIR_DBG ("ip6_addr_%s: si:%U %U/%u", is_del ? "del" : "add",
 		    format_vnet_sw_if_index_name, vnet_get_main (),
