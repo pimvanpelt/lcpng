@@ -1,145 +1,101 @@
-This code was taken from VPP's src/plugins/linux-cp/ directory, originally by:
-Signed-off-by: Neale Ranns <nranns@cisco.com>
-Signed-off-by: Matthew Smith <mgsmith@netgate.com>
-Signed-off-by: Jon Loeliger <jdl@netgate.com>
-Signed-off-by: Pim van Pelt <pim@ipng.nl>
-Signed-off-by: Neale Ranns <neale@graphiant.com>
+# Introduction
+
+This plugin is a *temporary!* copy of VPP's src/plugins/linux-cp/ plugin,
+originally by the following authors:
+*   Signed-off-by: Neale Ranns <nranns@cisco.com>
+*   Signed-off-by: Matthew Smith <mgsmith@netgate.com>
+*   Signed-off-by: Jon Loeliger <jdl@netgate.com>
+*   Signed-off-by: Pim van Pelt <pim@ipng.nl>
+*   Signed-off-by: Neale Ranns <neale@graphiant.com>
 
 See previous work:
-https://gerrit.fd.io/r/c/vpp/+/30759 (interface mirroring)
-https://gerrit.fd.io/r/c/vpp/+/31122 (netlink listener)
+*   [interface mirroring](https://gerrit.fd.io/r/c/vpp/+/30759)
+*   [netlink listener](https://gerrit.fd.io/r/c/vpp/+/31122)
 
-It's intended to be re-submitted for review as a cleanup/rewrite of the existing
-Linux CP interface mirror and netlink syncer. 
+My work is intended to be re-submitted for review as a cleanup/rewrite of the
+existing Linux CP interface mirror and netlink syncer. 
 
-# FAQ
+Follow along on [my blog](https://ipng.ch/s/articles/) for my findings while
+I work towards a completed plugin that can copy VPP configuration into Linux
+interfaces, and copy Linux configuration changes into VPP (ie. a fully
+bidirectional pipe between Linux and VPP).
 
-***Why doesn't the plugin listen to new linux interfaces?***
+When the code is complete, this plugin should be able to work seemlessly with
+a higher level controlplane like [FRR](https://frrouting.org/) or
+[Bird](https://bird.network.cz/), for example as a BGP/OSPF speaking ISP router.
 
-Consider the following two commands:
+## WARNING!!
+
+The only reason that this code is here, is so that I can make some progress
+iterating on the Linux CP plugin, and share my findings with some interested
+folks. The goal is NOT to use this plugin anywhere other than a bench. I
+intend to contribute the plugin back upstream as soon as it's peer reviewed!
+
+***Pull Requests and Issues will be immediately closed without warning***
+
+VPP's code lives at [fd.io](https://gerrit.fd.io/r/c/vpp), and this copy is
+shared only for convenience purposes.
+
+## Building
+
+First, ensure that you can build and run 'vanilla' VPP by using the
+[instructions](https://wiki.fd.io/view/VPP/Pulling,_Building,_Running,_Hacking_and_Pushing_VPP_Code).
+Then check out this plugin out-of-tree and symlink it in.
 
 ```
-ip link add link e0 name foo type vlan id 10 protocol 802.1ad
-ip link add link foo name bar type vlan id 20
-```
-The two effectively create a dot1ad with an outer tag of 10 and an inner tag of
-20 (you could also read this as e0.10.20). The `foo` interface is the untagged
-VLAN 10 on e0 with ethernet type 0x8aa8, and the `bar` interface carries any
-tagged traffic on `foo`, thus is ethernet type 0x8100 within the e0's ethernet
-type 0x8aa8 outer frame.
-
-It's easy to listen to netlink messages like these, but their name will in
-no way be easy to map to a VPP subinterface concept. In VPP, all subinterfaces
-are numbered on their phy, such as TenGigabitEthernet0/0/0.1000. It is not
-clear how to map the linux host interface name `foo` and `bar` to this
-numbering scheme in a way that doesn't create collissions.
-
-A second consideration is that these QinQ interfaces can be 802.1ad or 802.1q
-tagged on the outer. So what happens if after the above, a new `foo2` interface
-is created with protocol 802.1q ? VPP only allows sub interfaces to carry one
-(1) number.
-
-Rather than applying heuristics and adding bugs, it is not possible to create
-VPP interfaces via Linux, only the other way around. Create any L3 capable
-interface or subinterface in VPP, and it'll be created in Linux as well.
-
-### Notes
-
-We'll be able to see if VPP changes the interfaces with a bunch of callback
-functions:
-```
-pim@hippo:~/src/vpp$ grep -r VNET.*_FUNCTION src/vnet/interface.h
-#define VNET_HW_INTERFACE_ADD_DEL_FUNCTION(f)                   \
-#define VNET_HW_INTERFACE_LINK_UP_DOWN_FUNCTION(f)              \
-#define VNET_SW_INTERFACE_MTU_CHANGE_FUNCTION(f)                \
-#define VNET_SW_INTERFACE_ADD_DEL_FUNCTION(f)                   \
-#define VNET_SW_INTERFACE_ADMIN_UP_DOWN_FUNCTION(f)             \
+mkdir ~/src
+cd ~/src
+git clone https://github.com/pimvanpelt/lcpng.git
+ln -s ~/src/vpp/src/plugins/lcpng ~src/lcpng
 ```
 
-Super useful for MTU changes, admin up/dn and link up/dn changes (to copy
-these into the TAP and the host interface).
+## Running
 
-Notably missing here is some form of SW_INTERFACE_L2_L3_CHANGE_FUNCTION(f)
-which would be useful to remove an LCP if the iface goes into L2 mode, and
-(re)create an LCP if the iface goes into L3 mode.
+Ensure this plugin is enabled and the original `linux-cp` plugin is disabled,
+that logging goes to stderr (in the debug variant of VPP), and that the features
+are dis/enabled, by providing the following `startup.conf`:
+```
+plugins {
+  path ~/src/vpp/build-root/install-vpp_debug-native/vpp/lib/vpp_plugins
+  plugin lcpng_if_plugin.so { enable }
+  plugin linux_cp_plugin.so { disable }
+}
 
-It will also be very useful to create an IP_ADDRESS_ADD_DEL_FUNCTION(f)
-of sorts so that we know when VPP sets an IPv4/IPv6 address (so that we
-can copy this into the host interface).
+logging {
+   default-log-level info
+   default-syslog-log-level crit
+   ## Set per-class configuration
+   class linux-cp/if { rate-limit 10000 level debug syslog-level debug }
+}
 
-#### LCP names
+lcpng {
+  default netns dataplane
+  lcp-sync
+  lcp-auto-subint
+}
+```
 
-The maximum length of an interface name in Linux is 15 characters. I'd love
-to be able to make interfaces like you might find in DANOS:
-dp0p6s0f1 but this is already 9 characters, and the slot and PCI bus can be
-double digits. The Linux idiom is to make a link as a child of another link,
-like:
-  ip link add link eth0 name eth0.1234 type vlan id 1234 proto dot1q
+Then, simply `make build` and `make run` VPP which will load the plugin.
+```
+im@hippo:~/src/vpp$ make run
+snort                [debug ]: initialized
+snort                [debug ]: snort listener /run/vpp/snort.sock
+linux-cp/if          [debug ]: interface_add: [1] sw TenGigabitEthernet3/0/0 is_sub 0 lcp-auto-subint 1
+linux-cp/if          [debug ]: mtu_change: sw TenGigabitEthernet3/0/0 0
+linux-cp/if          [debug ]: interface_add: [2] sw TenGigabitEthernet3/0/1 is_sub 0 lcp-auto-subint 1
+linux-cp/if          [debug ]: mtu_change: sw TenGigabitEthernet3/0/1 0
+linux-cp/if          [debug ]: interface_add: [3] sw TenGigabitEthernet3/0/2 is_sub 0 lcp-auto-subint 1
+linux-cp/if          [debug ]: mtu_change: sw TenGigabitEthernet3/0/2 0
+linux-cp/if          [debug ]: interface_add: [4] sw TenGigabitEthernet3/0/3 is_sub 0 lcp-auto-subint 1
+linux-cp/if          [debug ]: mtu_change: sw TenGigabitEthernet3/0/3 0
+linux-cp/if          [debug ]: interface_add: [5] sw TwentyFiveGigabitEthernete/0/0 is_sub 0 lcp-auto-subint 1
+linux-cp/if          [debug ]: mtu_change: sw TwentyFiveGigabitEthernete/0/0 0
+linux-cp/if          [debug ]: interface_add: [6] sw TwentyFiveGigabitEthernete/0/1 is_sub 0 lcp-auto-subint 1
+linux-cp/if          [debug ]: mtu_change: sw TwentyFiveGigabitEthernete/0/1 0
+    _______    _        _   _____  ___ 
+ __/ __/ _ \  (_)__    | | / / _ \/ _ \
+ _/ _// // / / / _ \   | |/ / ___/ ___/
+ /_/ /____(_)_/\___/   |___/_/  /_/    
 
-You can also make QinQ interfaces in the same way:
-  ip link add link eth0.1234 name eth0.1234.1000 type vlan id 1234
-
-This last interface will have 5 characters .1000 for the inner, 5 characters
-.1234 for the outer, leaving 5 characters for the full interface name.
-
-I can see two ways out of this:
-1.  Make main interfaces very short
-For example `et0` for DPDK interfaces, `be1` for BondEthernet, `lo4` for
-Loopback interfaces, and possibly `bvi5` for BridgeVirtualInterface (these
-are the L3 interfaces in an L2 bridge-group). In such a world, we can create
-any number of subinterfaces in a Linux _idiomatic way_, like et192.1234.1000
-but BVIs will be limited to 100 interfaces and ethernet's to 1000. This seems
-okay, but does paint us in the corner possibly in the future.
-
-1.  Strictly follow VPP's naming
-VPP will always have exactly one (integer) numbered subinterface, like
-`TenGigabitEthernet3/0/2.1234567890` and the function of such a subint can take
-multiple forms (dot1q, dot1ad, double-tagged, etc). In this world, we can create
-interface names in Linux that map very cleanly to VPP's subinterfaces, and we
-can also auto-create subinterfaces by reading a netlink link message, provided
-the chosen name follows an <iface>.<number> pattern, and <iface> maps to a known
-LCP.
-
-Here's how I can see the latter approach working:
-
-Creation of VPP sub-interface directly creates the corresponding LCP device
-name `e0.1234`. Creating a more complex dot1q/dot1q or dot1ad or dot1ad/dot1q
-sub-interface will again create a mirror LCP with device name `e0.1235`,
-reusing the sub-int number from VPP directly. That's good.
-
-Reading a netlink new link message is a bit trickier, but here's what I
-propose:
-*   On a physical interface `e0`, one can create a dot1q or dot1ad link with a
-    linux name of `e0.1234`; in such a case, a corresponding sub-int will be
-    made by the plugin in VPP.
-*   On a linux interface `e0.1234`, only a dot1q interface can be made, but
-    its name is required to follow the <iface>.<number> pattern, and if so,
-    the plugin will make a VPP interface corresponding to that number, but
-    considering we already know if the parent is either a .1q interface or a
-    .1ad interface, the correct type of VPP interface can be selected.
-    *   If an interface name is not valid, the plugin will destroy the link and
-        log an error.
-    *   Because we'll want to use one TAP interface per LCP (see rationale
-        above), the plugin will have to destroy the link and recreate it as a
-        new interface with the same name, but not as a child of the originally
-        requested parent interface.
-
-With this, we can:
-
-1.  Create a dot1q subinterface on `e0`:
-    `ip link add link e0 name e0.1234 type vlan id 1234`
-1.  Create a dot1q outer, dot1q inner subinterface on `e0`:
-    `ip link add link e0.1234 name e0.1235 type vlan id 1000`
-1.  Create a dot1ad subinterface on `e0`:
-    `ip link add link e0 name e0.1236 type vlan id 2345 proto 802.1ad`
-1.  Create a dot1ad outer, dot1q inner subinterface on `e0`:
-    `ip link add link e0.1236 name e0.1237 type vlan id 2345 proto 802.1q`
-1.  Fail to create an interface which has an invalid name:
-    `ip link add link e0.1234 name e0.1234.2345 type vlan id 2345 proto 802.1q`
-    (this interface will be destroyed by the plugin and an error logged)
-
-For each of these interface creations, the user is asking them to be created as
-a child of an existing interface (either `e0` or `e0.1234`), but the plugin
-will destroy that interface again, and recreate it as a top-level interface
-int the namespace, with an accompanying tap interface. So in this plugin, every
-LCP has exactly one TAP, and that TAP interface is never a sub-int.
+DBGvpp# 
+```
