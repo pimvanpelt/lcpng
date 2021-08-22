@@ -42,21 +42,21 @@ The following functionality is supported by the plugin. The VPP->Linux column
 shows changes in VPP that are copied into the Linux environment; Linux->VPP
 column shows changes in LInux that are copied into VPP.
 
-| Function  | VPP -> Linux | Linux -> VPP |
-| --------- | ------------- | -------------|
-| Link Up/Down  | ✅ | 🟠  |
-| MTU Change    | ✅ | 🟠  |
-| MAC change    | ❌ 1) | 🟠 |
-| IPv4 Address  | ✅ | 🟠  | 
-| IPv6 Address  | ✅ | 🟠  | 
-| Route         | ❌ 2) | 🟠 |
-| Tunnel Add    | ❌ | ❌  |
-| Phy Add       | ✅ | 🟠  |
-| Add/Del .1q   | ✅ | 🟠  |
-| Add/Del .1ad  | ✅ | 🟠  |
-| Add/Del QinQ  | ✅ | 🟠  |
-| Add/Del QinAD | ✅ | 🟠  |
-| BondEthernet  | ✅ | 🟠  |
+| Function       | VPP -> Linux  | Linux -> VPP |
+| -------------- | ------------- | -------------|
+| Up/Down Link   | ✅            | 🟠            |
+| Change MTU     | ✅            | 🟠            |
+| Change MAC     | ❌ 1)         | 🟠            |
+| Add/Del IP4/IP6 Address  | ✅  | 🟠            | 
+| MPLS           | ❌            | ❌            |
+| Route          | ❌ 2)         | 🟠            |
+| Add/Del Tunnel | ❌            | ❌            |
+| Add/Del Phy    | ✅            | 🟠            |
+| Add/Del .1q    | ✅            | 🟠            |
+| Add/Del .1ad   | ✅            | 🟠            |
+| Add/Del QinQ   | ✅            | 🟠            |
+| Add/Del QinAD  | ✅            | 🟠            |
+| Add/Del BondEthernet  | ✅     | 🟠            |
 
 Legend: ✅=supported; 🟠=maybe; ❌=infeasible.
 
