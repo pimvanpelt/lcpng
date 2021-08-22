@@ -36,6 +36,29 @@ intend to contribute the plugin back upstream as soon as it's peer reviewed!
 VPP's code lives at [fd.io](https://gerrit.fd.io/r/c/vpp), and this copy is
 shared only for convenience purposes.
 
+## Functionality
+
+The following functionality is supported by the plugin. The VPP->Linux column
+shows changes in VPP that are copied into the Linux environment; Linux->VPP
+column shows changes in LInux that are copied into VPP.
+
+| Function  | VPP -> Linux | Linux -> VPP |
+| --------- | ------------- | -------------|
+| Link Up/Down   | ✅ | ❌  |
+| MTU Change   | ✅ | ❌  |
+| MAC change   | ❌ 1) | ❌ |
+| IPv4 Address | ✅ | ❌  | 
+| IPv6 Address | ✅ | ❌  | 
+| Route        | ❌ 2) | ❌ |
+| SubInt .1q   | ✅ | ❌  |
+| SubInt .1ad  | ✅ | ❌  |
+| SubInt QinQ  | ✅ | ❌  |
+| SubInt QinAD | ✅ | ❌  |
+| BondEthernet | ✅ | ❌  |
+
+1) There is no callback or macro to register an interest in MAC address changes in VPP.
+2) There is no callback or macro to register an interest in FIB changes in VPP.
+
 ## Building
 
 First, ensure that you can build and run 'vanilla' VPP by using the
