@@ -44,17 +44,21 @@ column shows changes in LInux that are copied into VPP.
 
 | Function  | VPP -> Linux | Linux -> VPP |
 | --------- | ------------- | -------------|
-| Link Up/Down   | ✅ | ❌  |
-| MTU Change   | ✅ | ❌  |
-| MAC change   | ❌ 1) | ❌ |
-| IPv4 Address | ✅ | ❌  | 
-| IPv6 Address | ✅ | ❌  | 
-| Route        | ❌ 2) | ❌ |
-| SubInt .1q   | ✅ | ❌  |
-| SubInt .1ad  | ✅ | ❌  |
-| SubInt QinQ  | ✅ | ❌  |
-| SubInt QinAD | ✅ | ❌  |
-| BondEthernet | ✅ | ❌  |
+| Link Up/Down  | ✅ | 🟠  |
+| MTU Change    | ✅ | 🟠  |
+| MAC change    | ❌ 1) | 🟠 |
+| IPv4 Address  | ✅ | 🟠  | 
+| IPv6 Address  | ✅ | 🟠  | 
+| Route         | ❌ 2) | 🟠 |
+| Tunnel Add    | ❌ | ❌  |
+| Phy Add       | ✅ | 🟠  |
+| Add/Del .1q   | ✅ | 🟠  |
+| Add/Del .1ad  | ✅ | 🟠  |
+| Add/Del QinQ  | ✅ | 🟠  |
+| Add/Del QinAD | ✅ | 🟠  |
+| BondEthernet  | ✅ | 🟠  |
+
+Legend: ✅=supported; 🟠=maybe; ❌=infeasible.
 
 1) There is no callback or macro to register an interest in MAC address changes in VPP.
 2) There is no callback or macro to register an interest in FIB changes in VPP.
