@@ -158,6 +158,7 @@ lcp_nl_addr_add_del (struct rtnl_addr *ra, int is_del)
 
   lcp_nl_mk_ip_addr (rtnl_addr_get_local (ra), &nh);
 
+  vlib_worker_thread_barrier_sync (vlib_get_main ());
   if (AF_IP4 == ip_addr_version (&nh))
     {
       ip4_add_del_interface_address (
@@ -182,6 +183,7 @@ lcp_nl_addr_add_del (struct rtnl_addr *ra, int is_del)
 	  rtnl_addr_get_prefixlen (ra), is_del);
       lcp_nl_ip6_mroutes_add_del (lip->lip_phy_sw_if_index, !is_del);
     }
+  vlib_worker_thread_barrier_release (vlib_get_main ());
 
   NL_NOTICE ("addr_%s %U/%d iface %U", is_del ? "del: Deleted" : "add: Added",
 	     format_ip_address, &nh, rtnl_addr_get_prefixlen (ra),
@@ -235,7 +237,9 @@ lcp_nl_neigh_add (struct rtnl_neigh *rn)
       else
 	flags = IP_NEIGHBOR_FLAG_DYNAMIC;
 
+      vlib_worker_thread_barrier_sync (vlib_get_main ());
       rv = ip_neighbor_add (&nh, &mac, lip->lip_phy_sw_if_index, flags, NULL);
+      vlib_worker_thread_barrier_release (vlib_get_main ());
 
       if (rv)
 	{
@@ -270,7 +274,9 @@ lcp_nl_neigh_del (struct rtnl_neigh *rn)
     }
 
   lcp_nl_mk_ip_addr (rtnl_neigh_get_dst (rn), &nh);
+  vlib_worker_thread_barrier_sync (vlib_get_main ());
   rv = ip_neighbor_del (&nh, lip->lip_phy_sw_if_index);
+  vlib_worker_thread_barrier_release (vlib_get_main ());
 
   if (rv == 0 || rv == VNET_API_ERROR_NO_SUCH_ENTRY)
     {
