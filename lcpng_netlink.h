@@ -75,11 +75,14 @@ typedef struct lcp_nl_main
   u32 batch_delay_ms;
 
 } lcp_nl_main_t;
-
-static void lcp_nl_open_socket (u8 *ns);
-static void lcp_nl_close_socket (void);
+extern lcp_nl_main_t lcp_nl_main;
 
 u8 *format_nl_object (u8 *s, va_list *args);
+
+/* Functions from lcpng_nl_sync.c
+ */
+void lcp_nl_neigh_add (struct rtnl_neigh *rn);
+void lcp_nl_neigh_del (struct rtnl_neigh *rn);
 
 /*
  * fd.io coding-style-patch-verification: ON

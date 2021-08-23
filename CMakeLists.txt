@@ -56,6 +56,7 @@ add_vpp_plugin(lcpng_if
 add_vpp_plugin(lcpng_nl
   SOURCES
   lcpng_netlink.c
+  lcpng_nl_sync.c
 
   LINK_LIBRARIES
   lcpng

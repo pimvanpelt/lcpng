@@ -40,7 +40,10 @@
 #include <plugins/lcpng/lcpng_netlink.h>
 #include <plugins/lcpng/lcpng_interface.h>
 
-static lcp_nl_main_t lcp_nl_main = {
+static void lcp_nl_open_socket (u8 *ns);
+static void lcp_nl_close_socket (void);
+
+lcp_nl_main_t lcp_nl_main = {
   .rx_buf_size = NL_RX_BUF_SIZE_DEF,
   .tx_buf_size = NL_TX_BUF_SIZE_DEF,
   .batch_size = NL_BATCH_SIZE_DEF,
@@ -200,6 +203,10 @@ lcp_nl_dispatch (struct nl_object *obj, void *arg)
   /* Here is where we'll sync the netlink messages into VPP */
   switch (nl_object_get_msgtype (obj))
     {
+    case RTM_NEWNEIGH:
+      return lcp_nl_neigh_add ((struct rtnl_neigh *) obj);
+    case RTM_DELNEIGH:
+      return lcp_nl_neigh_del ((struct rtnl_neigh *) obj);
     default:
       NL_WARN ("dispatch: ignored %U", format_nl_object, obj);
       break;
