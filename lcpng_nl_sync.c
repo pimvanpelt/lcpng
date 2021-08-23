@@ -272,16 +272,16 @@ lcp_nl_neigh_del (struct rtnl_neigh *rn)
   lcp_nl_mk_ip_addr (rtnl_neigh_get_dst (rn), &nh);
   rv = ip_neighbor_del (&nh, lip->lip_phy_sw_if_index);
 
-  if (rv)
-    {
-      NL_ERROR ("neigh_del: Failed %U iface %U", format_ip_address, &nh,
-		format_vnet_sw_if_index_name, vnet_get_main (),
-		lip->lip_phy_sw_if_index);
-    }
-  else
+  if (rv == 0 || rv == VNET_API_ERROR_NO_SUCH_ENTRY)
     {
       NL_NOTICE ("neigh_del: Deleted %U iface %U", format_ip_address, &nh,
 		 format_vnet_sw_if_index_name, vnet_get_main (),
 		 lip->lip_phy_sw_if_index);
+    }
+  else
+    {
+      NL_ERROR ("neigh_del: Failed %U iface %U", format_ip_address, &nh,
+		format_vnet_sw_if_index_name, vnet_get_main (),
+		lip->lip_phy_sw_if_index);
     }
 }
