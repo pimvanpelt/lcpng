@@ -53,6 +53,14 @@ add_vpp_plugin(lcpng_if
   lcpng
 )
 
+add_vpp_plugin(lcpng_nl
+  SOURCES
+  lcpng_netlink.c
+
+  LINK_LIBRARIES
+  lcpng
+)
+
 add_vpp_plugin(lcpng_unittest
   SOURCES
   test/lcpng_unittest.c
