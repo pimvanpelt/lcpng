@@ -207,6 +207,10 @@ lcp_nl_dispatch (struct nl_object *obj, void *arg)
       return lcp_nl_neigh_add ((struct rtnl_neigh *) obj);
     case RTM_DELNEIGH:
       return lcp_nl_neigh_del ((struct rtnl_neigh *) obj);
+    case RTM_NEWADDR:
+      return lcp_nl_addr_add ((struct rtnl_addr *) obj);
+    case RTM_DELADDR:
+      return lcp_nl_addr_del ((struct rtnl_addr *) obj);
     default:
       NL_WARN ("dispatch: ignored %U", format_nl_object, obj);
       break;

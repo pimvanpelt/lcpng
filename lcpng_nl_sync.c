@@ -52,6 +52,155 @@ lcp_nl_mk_mac_addr (const struct nl_addr *rna, mac_address_t *mac)
   mac_address_from_bytes (mac, nl_addr_get_binary_addr (rna));
 }
 
+static const mfib_prefix_t ip4_specials[] = {
+  /* ALL prefixes are in network order */
+  {
+   /* (*,224.0.0.0)/24 - all local subnet */
+   .fp_grp_addr = {
+		   .ip4.data_u32 = 0x000000e0,
+		   },
+   .fp_len = 24,
+   .fp_proto = FIB_PROTOCOL_IP4,
+   },
+};
+
+static void
+lcp_nl_ip4_mroutes_add_del (u32 sw_if_index, u8 is_add)
+{
+  const fib_route_path_t path = {
+    .frp_proto = DPO_PROTO_IP4,
+    .frp_addr = zero_addr,
+    .frp_sw_if_index = sw_if_index,
+    .frp_fib_index = ~0,
+    .frp_weight = 1,
+    .frp_mitf_flags = MFIB_ITF_FLAG_ACCEPT,
+  };
+  u32 mfib_index;
+  int ii;
+
+  mfib_index =
+    mfib_table_get_index_for_sw_if_index (FIB_PROTOCOL_IP4, sw_if_index);
+
+  for (ii = 0; ii < ARRAY_LEN (ip4_specials); ii++)
+    {
+      if (is_add)
+	{
+	  mfib_table_entry_path_update (mfib_index, &ip4_specials[ii],
+					MFIB_SOURCE_PLUGIN_LOW, &path);
+	}
+      else
+	{
+	  mfib_table_entry_path_remove (mfib_index, &ip4_specials[ii],
+					MFIB_SOURCE_PLUGIN_LOW, &path);
+	}
+    }
+}
+
+static const mfib_prefix_t ip6_specials[] = {
+  /* ALL prefixes are in network order */
+  {
+   /* (*,ff00::)/8 - all local subnet */
+   .fp_grp_addr = {
+		   .ip6.as_u64[0] = 0x00000000000000ff,
+		   },
+   .fp_len = 8,
+   .fp_proto = FIB_PROTOCOL_IP6,
+   },
+};
+
+static void
+lcp_nl_ip6_mroutes_add_del (u32 sw_if_index, u8 is_add)
+{
+  const fib_route_path_t path = {
+    .frp_proto = DPO_PROTO_IP6,
+    .frp_addr = zero_addr,
+    .frp_sw_if_index = sw_if_index,
+    .frp_fib_index = ~0,
+    .frp_weight = 1,
+    .frp_mitf_flags = MFIB_ITF_FLAG_ACCEPT,
+  };
+  u32 mfib_index;
+  int ii;
+
+  mfib_index =
+    mfib_table_get_index_for_sw_if_index (FIB_PROTOCOL_IP6, sw_if_index);
+
+  for (ii = 0; ii < ARRAY_LEN (ip6_specials); ii++)
+    {
+      if (is_add)
+	{
+	  mfib_table_entry_path_update (mfib_index, &ip6_specials[ii],
+					MFIB_SOURCE_PLUGIN_LOW, &path);
+	}
+      else
+	{
+	  mfib_table_entry_path_remove (mfib_index, &ip6_specials[ii],
+					MFIB_SOURCE_PLUGIN_LOW, &path);
+	}
+    }
+}
+
+static void
+lcp_nl_addr_add_del (struct rtnl_addr *ra, int is_del)
+{
+  lcp_itf_pair_t *lip;
+  ip_address_t nh;
+
+  NL_DBG ("addr_%s: netlink %U", is_del ? "del" : "add", format_nl_object, ra);
+
+  if (!(lip = lcp_itf_pair_get (
+	  lcp_itf_pair_find_by_vif (rtnl_addr_get_ifindex (ra)))))
+    {
+      NL_WARN ("addr_%s: no LCP for %U ", is_del ? "del" : "add",
+	       format_nl_object, ra);
+      return;
+    }
+
+  lcp_nl_mk_ip_addr (rtnl_addr_get_local (ra), &nh);
+
+  if (AF_IP4 == ip_addr_version (&nh))
+    {
+      ip4_add_del_interface_address (
+	vlib_get_main (), lip->lip_phy_sw_if_index, &ip_addr_v4 (&nh),
+	rtnl_addr_get_prefixlen (ra), is_del);
+      lcp_nl_ip4_mroutes_add_del (lip->lip_phy_sw_if_index, !is_del);
+    }
+  else if (AF_IP6 == ip_addr_version (&nh))
+    {
+      if (ip6_address_is_link_local_unicast (&ip_addr_v6 (&nh)))
+	if (is_del)
+	  ip6_link_disable (lip->lip_phy_sw_if_index);
+	else
+	  {
+	    ip6_link_enable (lip->lip_phy_sw_if_index, NULL);
+	    ip6_link_set_local_address (lip->lip_phy_sw_if_index,
+					&ip_addr_v6 (&nh));
+	  }
+      else
+	ip6_add_del_interface_address (
+	  vlib_get_main (), lip->lip_phy_sw_if_index, &ip_addr_v6 (&nh),
+	  rtnl_addr_get_prefixlen (ra), is_del);
+      lcp_nl_ip6_mroutes_add_del (lip->lip_phy_sw_if_index, !is_del);
+    }
+
+  NL_NOTICE ("addr_%s %U/%d iface %U", is_del ? "del: Deleted" : "add: Added",
+	     format_ip_address, &nh, rtnl_addr_get_prefixlen (ra),
+	     format_vnet_sw_if_index_name, vnet_get_main (),
+	     lip->lip_phy_sw_if_index);
+}
+
+void
+lcp_nl_addr_add (struct rtnl_addr *ra)
+{
+  lcp_nl_addr_add_del (ra, 0);
+}
+
+void
+lcp_nl_addr_del (struct rtnl_addr *ra)
+{
+  lcp_nl_addr_add_del (ra, 1);
+}
+
 void
 lcp_nl_neigh_add (struct rtnl_neigh *rn)
 {

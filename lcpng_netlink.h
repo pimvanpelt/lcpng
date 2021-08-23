@@ -83,6 +83,8 @@ u8 *format_nl_object (u8 *s, va_list *args);
  */
 void lcp_nl_neigh_add (struct rtnl_neigh *rn);
 void lcp_nl_neigh_del (struct rtnl_neigh *rn);
+void lcp_nl_addr_add (struct rtnl_addr *ra);
+void lcp_nl_addr_del (struct rtnl_addr *ra);
 
 /*
  * fd.io coding-style-patch-verification: ON
