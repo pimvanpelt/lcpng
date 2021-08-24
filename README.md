@@ -44,10 +44,10 @@ column shows changes in LInux that are copied into VPP.
 
 | Function       | VPP -> Linux  | Linux -> VPP |
 | -------------- | ------------- | -------------|
-| Up/Down Link   | ✅            | 🟠            |
-| Change MTU     | ✅            | 🟠            |
-| Change MAC     | ❌ 1)         | 🟠            |
-| Add/Del IP4/IP6 Address  | ✅  | 🟠            | 
+| Up/Down Link   | ✅            | ✅            |
+| Change MTU     | ✅            | ✅            |
+| Change MAC     | ❌ 1)         | ✅            |
+| Add/Del IP4/IP6 Address  | ✅  | ✅            | 
 | MPLS           | ❌            | ❌            |
 | Route          | ❌ 2)         | 🟠            |
 | Add/Del Tunnel | ❌            | ❌            |

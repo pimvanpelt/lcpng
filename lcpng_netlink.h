@@ -85,6 +85,8 @@ void lcp_nl_neigh_add (struct rtnl_neigh *rn);
 void lcp_nl_neigh_del (struct rtnl_neigh *rn);
 void lcp_nl_addr_add (struct rtnl_addr *ra);
 void lcp_nl_addr_del (struct rtnl_addr *ra);
+void lcp_nl_link_add (struct rtnl_link *rl, void *ctx);
+void lcp_nl_link_del (struct rtnl_link *rl);
 
 /*
  * fd.io coding-style-patch-verification: ON
