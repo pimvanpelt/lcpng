@@ -211,6 +211,10 @@ lcp_nl_dispatch (struct nl_object *obj, void *arg)
       return lcp_nl_addr_add ((struct rtnl_addr *) obj);
     case RTM_DELADDR:
       return lcp_nl_addr_del ((struct rtnl_addr *) obj);
+    case RTM_NEWLINK:
+      return lcp_nl_link_add ((struct rtnl_link *) obj, arg);
+    case RTM_DELLINK:
+      return lcp_nl_link_del ((struct rtnl_link *) obj);
     default:
       NL_WARN ("dispatch: ignored %U", format_nl_object, obj);
       break;
@@ -225,6 +229,15 @@ lcp_nl_process_msgs (void)
   int err, n_msgs = 0;
   f64 start = vlib_time_now (vlib_get_main ());
   u64 usecs = 0;
+
+  /* To avoid loops where VPP->LCP sync fights with LCP->VPP
+   * sync, we turn off the former if it's enabled, while we consume
+   * the netlink messages in this function, and put it back at the
+   * end of the function.
+   */
+  lcp_main_t *lcpm = &lcp_main;
+  u8 old_lcp_sync = lcpm->lcp_sync;
+  lcpm->lcp_sync = 0;
 
   /* process a batch of messages. break if we hit our batch_size
    * count limit or batch_delay_ms time limit.
@@ -263,6 +276,8 @@ lcp_nl_process_msgs (void)
     NL_DBG (
       "process_msgs: Processed %u messages in %llu usecs, %u left in queue",
       n_msgs, usecs, vec_len (nm->nl_ns.nl_msg_queue));
+
+  lcpm->lcp_sync = old_lcp_sync;
 
   return n_msgs;
 }

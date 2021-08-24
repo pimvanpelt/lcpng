@@ -44,10 +44,10 @@ column shows changes in LInux that are copied into VPP.
 
 | Function       | VPP -> Linux  | Linux -> VPP |
 | -------------- | ------------- | -------------|
-| Up/Down Link   | ✅            | 🟠            |
-| Change MTU     | ✅            | 🟠            |
-| Change MAC     | ❌ 1)         | 🟠            |
-| Add/Del IP4/IP6 Address  | ✅  | 🟠            | 
+| Up/Down Link   | ✅            | ✅            |
+| Change MTU     | ✅            | ✅            |
+| Change MAC     | ❌ 1)         | ✅            |
+| Add/Del IP4/IP6 Address  | ✅  | ✅            | 
 | MPLS           | ❌            | ❌            |
 | Route          | ❌ 2)         | 🟠            |
 | Add/Del Tunnel | ❌            | ❌            |
@@ -85,6 +85,7 @@ are dis/enabled, by providing the following `startup.conf`:
 plugins {
   path ~/src/vpp/build-root/install-vpp_debug-native/vpp/lib/vpp_plugins
   plugin lcpng_if_plugin.so { enable }
+  plugin lcpng_nl_plugin.so { enable }
   plugin linux_cp_plugin.so { disable }
 }
 
@@ -93,6 +94,7 @@ logging {
    default-syslog-log-level crit
    ## Set per-class configuration
    class linux-cp/if { rate-limit 10000 level debug syslog-level debug }
+   class linux-cp/nl { rate-limit 10000 level debug syslog-level debug }
 }
 
 lcpng {
