@@ -22,6 +22,7 @@
 #include <vnet/plugin/plugin.h>
 
 #include <vppinfra/linux/netns.h>
+#include <linux/if_ether.h>
 
 #include <plugins/lcpng/lcpng_interface.h>
 #include <plugins/lcpng/lcpng_netlink.h>
@@ -52,21 +53,196 @@ lcp_nl_mk_mac_addr (const struct nl_addr *rna, mac_address_t *mac)
   mac_address_from_bytes (mac, nl_addr_get_binary_addr (rna));
 }
 
-/*
- * Check timestamps on netlink message and interface pair to decide whether
- * the message should be applied. See the declaration of nl_msg_info_t for
- * an explanation on why this is necessary.
- * If timestamps are good (message ts is newer than intf pair ts), return 0.
- * Else, return -1.
- */
 static int
-lcp_nl_lip_ts_check (nl_msg_info_t *msg_info, lcp_itf_pair_t *lip)
+vnet_sw_interface_subid_exists (vnet_main_t *vnm, u32 sw_if_index, u32 id)
 {
-  if (msg_info->ts > lip->lip_create_ts)
-    return 0;
+  u64 sup_and_sub_key = ((u64) (sw_if_index) << 32) | (u64) id;
+  vnet_interface_main_t *im = &vnm->interface_main;
+  uword *p;
 
-  NL_DBG ("lip_ts_check: Early message for %U", format_lcp_itf_pair, lip);
-  return -1;
+  p = hash_get_mem (im->sw_if_index_by_sup_and_sub, &sup_and_sub_key);
+  if (p)
+    return 1;
+  return 0;
+}
+
+static int
+vnet_sw_interface_get_available_subid (vnet_main_t *vnm, u32 sw_if_index,
+				       u32 *id)
+{
+  u32 i;
+
+  for (i = 1; i < 4096; i++)
+    {
+      if (!vnet_sw_interface_subid_exists (vnm, sw_if_index, i))
+	{
+	  *id = i;
+	  return 0;
+	}
+    }
+
+  *id = -1;
+  return 1;
+}
+
+// Returns the LIP for a newly created sub-int pair, or
+// NULL in case no sub-int could be created.
+static lcp_itf_pair_t *
+lcp_nl_link_add_vlan (struct rtnl_link *rl)
+{
+  vnet_main_t *vnm = vnet_get_main ();
+  int parent_idx, idx;
+  lcp_itf_pair_t *parent_lip, *phy_lip;
+  vnet_sw_interface_t *parent_sw;
+  int vlan;
+  u32 proto;
+  u32 subid;
+  u32 inner_vlan, outer_vlan, flags;
+  u32 phy_sw_if_index, host_sw_if_index;
+  lcp_main_t *lcpm = &lcp_main;
+  u8 old_lcp_auto_subint;
+
+  if (!rtnl_link_is_vlan (rl))
+    return NULL;
+
+  idx = rtnl_link_get_ifindex (rl);
+  parent_idx = rtnl_link_get_link (rl);
+  vlan = rtnl_link_vlan_get_id (rl);
+  proto = rtnl_link_vlan_get_protocol (rl);
+
+  /* Get the LIP of the parent, can be a phy Te3/0/0 or a subint Te3/0/0.1000
+   */
+  if (!(parent_lip = lcp_itf_pair_get (lcp_itf_pair_find_by_vif (parent_idx))))
+    {
+      NL_WARN ("link_add_vlan: no LCP for parent of %U", format_nl_object, rl);
+      return NULL;
+    }
+
+  parent_sw = vnet_get_sw_interface (vnm, parent_lip->lip_phy_sw_if_index);
+  if (!parent_sw)
+    {
+      NL_ERROR ("link_add_vlan: Cannot get parent of %U", format_lcp_itf_pair,
+		parent_lip);
+      return NULL;
+    }
+
+  /* Get the LIP of the phy, ie "phy TenGigabitEthernet3/0/0 host tap1 host-if
+   * e0" */
+  phy_lip =
+    lcp_itf_pair_get (lcp_itf_pair_find_by_phy (parent_sw->sup_sw_if_index));
+
+  if (vnet_sw_interface_is_sub (vnm, parent_lip->lip_phy_sw_if_index))
+    {
+      // QinQ or QinAD
+      inner_vlan = vlan;
+      outer_vlan = parent_sw->sub.eth.outer_vlan_id;
+      if (ntohs (proto) == ETH_P_8021AD)
+	{
+	  NL_ERROR ("link_add_vlan: cannot create inner dot1ad: %U",
+		    format_nl_object, rl);
+	  return NULL;
+	}
+    }
+  else
+    {
+      inner_vlan = 0;
+      outer_vlan = vlan;
+    }
+
+  // Flags: no_tags(1), one_tag(2), two_tags(4), dot1ad(8), exact_match(16) see
+  // vnet/interface.h
+  flags = 16; // exact-match
+  if ((parent_sw->sub.eth.flags.dot1ad) || (ntohs (proto) == ETH_P_8021AD))
+    flags += 8; // dot1ad
+  if (inner_vlan)
+    flags += 4; // two_tags
+  else
+    flags += 2; // one_tag
+
+  /* Create sub on the phy and on the tap, but avoid triggering sub-int
+   * autocreation if it's enabled.
+   */
+  old_lcp_auto_subint = lcpm->lcp_auto_subint;
+  lcpm->lcp_auto_subint = 0;
+
+  /* Generate a subid, take the first available one */
+  if (vnet_sw_interface_get_available_subid (vnm, parent_sw->sup_sw_if_index,
+					     &subid))
+    {
+      NL_ERROR ("link_add_vlan: cannot find available subid on phy %U",
+		format_vnet_sw_if_index_name, vnm, parent_sw->sup_sw_if_index);
+      lcpm->lcp_auto_subint = old_lcp_auto_subint;
+      return NULL;
+    }
+
+  vlib_worker_thread_barrier_sync (vlib_get_main ());
+  NL_NOTICE (
+    "link_add_vlan: creating subid %u outer %u inner %u flags %u on phy %U",
+    subid, outer_vlan, inner_vlan, flags, format_vnet_sw_if_index_name, vnm,
+    parent_sw->sup_sw_if_index);
+  if (vnet_create_sub_interface (parent_sw->sup_sw_if_index, subid, flags,
+				 inner_vlan, outer_vlan, &phy_sw_if_index))
+    {
+      NL_ERROR ("link_add_vlan: cannot create sub-int on phy %U flags %u "
+		"inner-dot1q %u dot1%s %u",
+		format_vnet_sw_if_index_name, vnm, parent_sw->sup_sw_if_index,
+		flags, inner_vlan,
+		parent_sw->sub.eth.flags.dot1ad ? "ad" : "q", outer_vlan);
+      vlib_worker_thread_barrier_release (vlib_get_main ());
+      lcpm->lcp_auto_subint = old_lcp_auto_subint;
+      return NULL;
+    }
+
+  /* Try to use the same subid on the TAP, generate a unique one otherwise. */
+  if (vnet_sw_interface_subid_exists (vnm, phy_lip->lip_host_sw_if_index,
+				      subid) &&
+      vnet_sw_interface_get_available_subid (
+	vnm, phy_lip->lip_host_sw_if_index, &subid))
+    {
+      NL_ERROR ("link_add_vlan: cannot find available subid on host %U",
+		format_vnet_sw_if_index_name, vnm,
+		phy_lip->lip_host_sw_if_index);
+      vlib_worker_thread_barrier_release (vlib_get_main ());
+      lcpm->lcp_auto_subint = old_lcp_auto_subint;
+      return NULL;
+    }
+  NL_NOTICE ("link_add_vlan: creating subid %u outer %u inner %u flags %u on "
+	     "host %U phy %U",
+	     subid, outer_vlan, inner_vlan, flags,
+	     format_vnet_sw_if_index_name, vnm,
+	     parent_lip->lip_host_sw_if_index, format_vnet_sw_if_index_name,
+	     vnm, phy_lip->lip_host_sw_if_index);
+
+  if (vnet_create_sub_interface (phy_lip->lip_host_sw_if_index, subid, flags,
+				 inner_vlan, outer_vlan, &host_sw_if_index))
+    {
+      NL_ERROR ("link_add_vlan: cannot create sub-int on host %U flags %u "
+		"inner-dot1q %u dot1%s %u",
+		format_vnet_sw_if_index_name, vnm,
+		phy_lip->lip_host_sw_if_index, flags, inner_vlan,
+		parent_sw->sub.eth.flags.dot1ad ? "ad" : "q", outer_vlan);
+      vlib_worker_thread_barrier_release (vlib_get_main ());
+      lcpm->lcp_auto_subint = old_lcp_auto_subint;
+      return NULL;
+    }
+  NL_NOTICE ("link_add_vlan: Creating LCP for host %U phy %U name %s idx %d",
+	     format_vnet_sw_if_index_name, vnm, host_sw_if_index,
+	     format_vnet_sw_if_index_name, vnm, phy_sw_if_index,
+	     rtnl_link_get_name (rl), idx);
+  vlib_worker_thread_barrier_release (vlib_get_main ());
+  lcpm->lcp_auto_subint = old_lcp_auto_subint;
+
+  u8 *if_namev = 0;
+  char *if_name;
+  if_name = rtnl_link_get_name (rl);
+  vec_validate_init_c_string (if_namev, if_name, strnlen (if_name, IFNAMSIZ));
+  lcp_itf_pair_add (host_sw_if_index, phy_sw_if_index, if_namev, idx,
+		    phy_lip->lip_host_type, phy_lip->lip_namespace);
+  vec_free (if_namev);
+
+  // If all went well, we just created a new LIP and added it to the index --
+  // so return that new (sub-interface) LIP to the caller.
+  return lcp_itf_pair_get (lcp_itf_pair_find_by_phy (phy_sw_if_index));
 }
 
 void
@@ -169,27 +345,16 @@ lcp_nl_link_add (struct rtnl_link *rl, void *ctx)
 
   NL_DBG ("link_add: netlink %U", format_nl_object, rl);
 
+  /* For NEWLINK messages, if this interface doesn't have a LIP, it
+   * may be a request to create a sub-int; so we call add_vlan()
+   * to create it and pass its new LIP so we can finish the request.
+   */
   if (!(lip = lcp_itf_pair_get (
 	  lcp_itf_pair_find_by_vif (rtnl_link_get_ifindex (rl)))))
     {
-      NL_WARN ("link_add: no LCP for %U (see TODO in code)", format_nl_object,
-	       rl);
-      // TODO(pim) -- here's where auto-creation of sub-int's comes into play
-      // if this is a nelink vlan interface, its parent may have a LIP, and if
-      // so, we can auto-create in VPP.
-      return;
+      if (!(lip = lcp_nl_link_add_vlan (rl)))
+	return;
     }
-
-  if (lcp_nl_lip_ts_check ((nl_msg_info_t *) ctx, lip))
-    return;
-
-  // 0 == unknown; 2 == down; 6 == up; TODO(pim) figure out operstate values
-  /*
-  if (2 == rtnl_link_get_operstate(rl)) {
-      NL_WARN ("link_add: ignoring %U (wrong operstate)", format_nl_object,
-  rl); return;
-  }
-  */
 
   admin_state = (IFF_UP & rtnl_link_get_flags (rl));
   vlib_worker_thread_barrier_sync (vlib_get_main ());

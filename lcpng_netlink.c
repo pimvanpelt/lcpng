@@ -178,9 +178,10 @@ format_nl_object (u8 *s, va_list *args)
 
 	if (rtnl_link_is_vlan (link))
 	  {
-	    s = format (s, " vlan { id %d proto 0x%04x",
-			rtnl_link_vlan_get_id (link),
-			ntohs (rtnl_link_vlan_get_protocol (link)));
+	    s =
+	      format (s, " vlan { parent-idx %d id %d proto 0x%04x",
+		      rtnl_link_get_link (link), rtnl_link_vlan_get_id (link),
+		      ntohs (rtnl_link_vlan_get_protocol (link)));
 	    s = format (s, " flags 0x%04x", rtnl_link_vlan_get_flags (link));
 	    rtnl_link_vlan_flags2str (rtnl_link_vlan_get_flags (link), buf,
 				      sizeof (buf));
