@@ -49,6 +49,7 @@ lcp_itf_pair_sync_state (lcp_itf_pair_t *lip)
   int curr_ns_fd = -1;
   int vif_ns_fd = -1;
   u32 mtu;
+  u32 netlink_mtu;
 
   if (!lcp_lcp_sync ())
     return;
@@ -74,9 +75,14 @@ lcp_itf_pair_sync_state (lcp_itf_pair_t *lip)
   lcp_itf_set_link_state (lip, (sw->flags & VNET_SW_INTERFACE_FLAG_ADMIN_UP));
 
   /* Linux will clamp MTU of children when the parent is lower. VPP is fine
-   * with differing MTUs. Reconcile any differences
+   * with differing MTUs. VPP assumes that if a subint has MTU of 0, that it
+   * inherits from its parent. Linux likes to be more explicit, so we
+   * reconcile any differences.
    */
   mtu = sw->mtu[VNET_MTU_L3];
+  if (mtu == 0)
+    mtu = sup_sw->mtu[VNET_MTU_L3];
+
   if (sup_sw->mtu[VNET_MTU_L3] < sw->mtu[VNET_MTU_L3])
     {
       LCP_ITF_PAIR_WARN ("sync_state: %U flags %u mtu %u sup-mtu %u: "
@@ -85,8 +91,17 @@ lcp_itf_pair_sync_state (lcp_itf_pair_t *lip)
 			 sw->mtu[VNET_MTU_L3], sup_sw->mtu[VNET_MTU_L3]);
       mtu = sup_sw->mtu[VNET_MTU_L3];
     }
-  vnet_sw_interface_set_mtu (vnet_get_main (), sw->sw_if_index, mtu);
-  vnet_netlink_set_link_mtu (lip->lip_vif_index, mtu);
+
+  /* Set MTU on all of {sw, tap, netlink}. Only send a netlink message if we
+   * really do want to change the MTU.
+   */
+  vnet_sw_interface_set_mtu (vnet_get_main (), lip->lip_phy_sw_if_index, mtu);
+  vnet_sw_interface_set_mtu (vnet_get_main (), lip->lip_host_sw_if_index, mtu);
+  if (NULL == vnet_netlink_get_link_mtu (lip->lip_vif_index, &netlink_mtu))
+    {
+      if (netlink_mtu != mtu)
+	vnet_netlink_set_link_mtu (lip->lip_vif_index, mtu);
+    }
 
   /* Linux will remove IPv6 addresses on children when the master state
    * goes down, so we ensure all IPv4/IPv6 addresses are synced.
@@ -187,13 +202,9 @@ VNET_SW_INTERFACE_ADMIN_UP_DOWN_FUNCTION(lcp_itf_admin_state_change);
 static clib_error_t *
 lcp_itf_mtu_change (vnet_main_t *vnm, u32 sw_if_index, u32 flags)
 {
-  const lcp_itf_pair_t *lip;
-  vnet_sw_interface_t *sw;
-  int curr_ns_fd = -1;
-  int vif_ns_fd = -1;
-
+  lcp_itf_pair_t *lip;
   if (!lcp_lcp_sync ())
-    return 0;
+    return NULL;
 
   LCP_ITF_PAIR_DBG ("mtu_change: sw %U %u", format_vnet_sw_if_index_name, vnm,
 		    sw_if_index, flags);
@@ -203,35 +214,6 @@ lcp_itf_mtu_change (vnet_main_t *vnm, u32 sw_if_index, u32 flags)
   if (!lip)
     return NULL;
 
-  sw = vnet_get_sw_interface_or_null (vnm, sw_if_index);
-  if (!sw)
-    return NULL;
-
-  if (lip->lip_namespace)
-    {
-      curr_ns_fd = clib_netns_open (NULL /* self */);
-      vif_ns_fd = clib_netns_open (lip->lip_namespace);
-      if (vif_ns_fd != -1)
-	clib_setns (vif_ns_fd);
-    }
-
-  LCP_ITF_PAIR_INFO ("mtu_change: %U mtu %u", format_lcp_itf_pair, lip,
-		     sw->mtu[VNET_MTU_L3]);
-  vnet_netlink_set_link_mtu (lip->lip_vif_index, sw->mtu[VNET_MTU_L3]);
-  if (vif_ns_fd != -1)
-    close (vif_ns_fd);
-
-  if (curr_ns_fd != -1)
-    {
-      clib_setns (curr_ns_fd);
-      close (curr_ns_fd);
-    }
-
-  // When Linux changes MTU on a master interface, all of its children that
-  // have a higher MTU are clamped to this value. This is not true in VPP,
-  // so we are forced to undo that change by walking the sub-interfaces of
-  // a phy and syncing their state back into linux.
-  // For simplicity, just walk all interfaces.
   lcp_itf_pair_sync_state_all ();
 
   return NULL;

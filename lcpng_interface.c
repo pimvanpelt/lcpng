@@ -606,6 +606,7 @@ lcp_validate_if_name (u8 *name)
 void
 lcp_itf_set_link_state (const lcp_itf_pair_t *lip, u8 state)
 {
+  vnet_main_t *vnm = vnet_get_main ();
   int curr_ns_fd, vif_ns_fd;
 
   if (!lip) return;
@@ -620,6 +621,18 @@ lcp_itf_set_link_state (const lcp_itf_pair_t *lip, u8 state)
 	clib_setns (vif_ns_fd);
     }
 
+  /* Set the same link state on all three (TAP, sw, netlink)
+   */
+  if (state)
+    {
+      vnet_sw_interface_admin_up (vnm, lip->lip_host_sw_if_index);
+      vnet_sw_interface_admin_up (vnm, lip->lip_phy_sw_if_index);
+    }
+  else
+    {
+      vnet_sw_interface_admin_down (vnm, lip->lip_phy_sw_if_index);
+      vnet_sw_interface_admin_down (vnm, lip->lip_host_sw_if_index);
+    }
   vnet_netlink_set_link_state (lip->lip_vif_index, state);
 
   if (vif_ns_fd != -1)
