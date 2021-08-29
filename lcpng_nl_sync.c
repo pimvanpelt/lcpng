@@ -626,7 +626,6 @@ lcp_nl_link_add_vlan (struct rtnl_link *rl)
       return NULL;
     }
 
-  vlib_worker_thread_barrier_sync (vlib_get_main ());
   NL_INFO (
     "link_add_vlan: creating subid %u outer %u inner %u flags %u on phy %U",
     subid, outer_vlan, inner_vlan, flags, format_vnet_sw_if_index_name, vnm,
@@ -639,7 +638,6 @@ lcp_nl_link_add_vlan (struct rtnl_link *rl)
 		format_vnet_sw_if_index_name, vnm, parent_sw->sup_sw_if_index,
 		flags, inner_vlan,
 		parent_sw->sub.eth.flags.dot1ad ? "ad" : "q", outer_vlan);
-      vlib_worker_thread_barrier_release (vlib_get_main ());
       lcpm->lcp_auto_subint = old_lcp_auto_subint;
       return NULL;
     }
@@ -653,7 +651,6 @@ lcp_nl_link_add_vlan (struct rtnl_link *rl)
       NL_ERROR ("link_add_vlan: cannot find available subid on host %U",
 		format_vnet_sw_if_index_name, vnm,
 		phy_lip->lip_host_sw_if_index);
-      vlib_worker_thread_barrier_release (vlib_get_main ());
       lcpm->lcp_auto_subint = old_lcp_auto_subint;
       return NULL;
     }
@@ -672,7 +669,6 @@ lcp_nl_link_add_vlan (struct rtnl_link *rl)
 		format_vnet_sw_if_index_name, vnm,
 		phy_lip->lip_host_sw_if_index, flags, inner_vlan,
 		parent_sw->sub.eth.flags.dot1ad ? "ad" : "q", outer_vlan);
-      vlib_worker_thread_barrier_release (vlib_get_main ());
       lcpm->lcp_auto_subint = old_lcp_auto_subint;
       return NULL;
     }
@@ -680,7 +676,6 @@ lcp_nl_link_add_vlan (struct rtnl_link *rl)
 	     format_vnet_sw_if_index_name, vnm, host_sw_if_index,
 	     format_vnet_sw_if_index_name, vnm, phy_sw_if_index,
 	     rtnl_link_get_name (rl), idx);
-  vlib_worker_thread_barrier_release (vlib_get_main ());
   lcpm->lcp_auto_subint = old_lcp_auto_subint;
 
   u8 *if_namev = 0;
@@ -711,18 +706,14 @@ lcp_nl_link_del (struct rtnl_link *rl)
     }
 
   NL_NOTICE ("link_del: Removing %U", format_lcp_itf_pair, lip);
-  vlib_worker_thread_barrier_sync (vlib_get_main ());
   lcp_itf_pair_delete (lip->lip_phy_sw_if_index);
-  vlib_worker_thread_barrier_release (vlib_get_main ());
 
   if (rtnl_link_is_vlan (rl))
     {
       NL_NOTICE ("link_del: Removing subint %U", format_vnet_sw_if_index_name,
 		 vnet_get_main (), lip->lip_phy_sw_if_index);
-      vlib_worker_thread_barrier_sync (vlib_get_main ());
       vnet_delete_sub_interface (lip->lip_phy_sw_if_index);
       vnet_delete_sub_interface (lip->lip_host_sw_if_index);
-      vlib_worker_thread_barrier_release (vlib_get_main ());
     }
 
   return;
@@ -808,7 +799,6 @@ lcp_nl_link_add (struct rtnl_link *rl, void *ctx)
     }
 
   admin_state = (IFF_UP & rtnl_link_get_flags (rl));
-  vlib_worker_thread_barrier_sync (vlib_get_main ());
   if (admin_state)
     {
       vnet_sw_interface_admin_up (vnm, lip->lip_host_sw_if_index);
@@ -822,7 +812,6 @@ lcp_nl_link_add (struct rtnl_link *rl, void *ctx)
 
   lcp_nl_link_set_mtu (rl, lip);
   lcp_nl_link_set_lladdr (rl, lip);
-  vlib_worker_thread_barrier_release (vlib_get_main ());
 
   NL_INFO ("link_add: %U admin %s", format_lcp_itf_pair, lip,
 	     admin_state ? "up" : "down");
@@ -912,7 +901,6 @@ lcp_nl_addr_add_del (struct rtnl_addr *ra, int is_del)
 
   lcp_nl_mk_ip_addr (rtnl_addr_get_local (ra), &nh);
 
-  vlib_worker_thread_barrier_sync (vlib_get_main ());
   if (AF_IP4 == ip_addr_version (&nh))
     {
       ip4_add_del_interface_address (
@@ -937,7 +925,6 @@ lcp_nl_addr_add_del (struct rtnl_addr *ra, int is_del)
 	  rtnl_addr_get_prefixlen (ra), is_del);
       lcp_nl_ip6_mroutes_add_del (lip->lip_phy_sw_if_index, !is_del);
     }
-  vlib_worker_thread_barrier_release (vlib_get_main ());
 
   NL_NOTICE ("addr_%s %U/%d iface %U", is_del ? "del: Deleted" : "add: Added",
 	     format_ip_address, &nh, rtnl_addr_get_prefixlen (ra),
@@ -991,9 +978,7 @@ lcp_nl_neigh_add (struct rtnl_neigh *rn)
       else
 	flags = IP_NEIGHBOR_FLAG_DYNAMIC;
 
-      vlib_worker_thread_barrier_sync (vlib_get_main ());
       rv = ip_neighbor_add (&nh, &mac, lip->lip_phy_sw_if_index, flags, NULL);
-      vlib_worker_thread_barrier_release (vlib_get_main ());
 
       if (rv)
 	{
@@ -1027,9 +1012,7 @@ lcp_nl_neigh_del (struct rtnl_neigh *rn)
     }
 
   lcp_nl_mk_ip_addr (rtnl_neigh_get_dst (rn), &nh);
-  vlib_worker_thread_barrier_sync (vlib_get_main ());
   rv = ip_neighbor_del (&nh, lip->lip_phy_sw_if_index);
-  vlib_worker_thread_barrier_release (vlib_get_main ());
 
   if (rv == 0 || rv == VNET_API_ERROR_NO_SUCH_ENTRY)
     {

@@ -202,28 +202,38 @@ static void
 lcp_nl_dispatch (struct nl_object *obj, void *arg)
 {
   /* Here is where we'll sync the netlink messages into VPP */
+  vlib_worker_thread_barrier_sync (vlib_get_main ());
   switch (nl_object_get_msgtype (obj))
     {
     case RTM_NEWNEIGH:
-      return lcp_nl_neigh_add ((struct rtnl_neigh *) obj);
+      lcp_nl_neigh_add ((struct rtnl_neigh *) obj);
+      break;
     case RTM_DELNEIGH:
-      return lcp_nl_neigh_del ((struct rtnl_neigh *) obj);
+      lcp_nl_neigh_del ((struct rtnl_neigh *) obj);
+      break;
     case RTM_NEWADDR:
-      return lcp_nl_addr_add ((struct rtnl_addr *) obj);
+      lcp_nl_addr_add ((struct rtnl_addr *) obj);
+      break;
     case RTM_DELADDR:
-      return lcp_nl_addr_del ((struct rtnl_addr *) obj);
+      lcp_nl_addr_del ((struct rtnl_addr *) obj);
+      break;
     case RTM_NEWLINK:
-      return lcp_nl_link_add ((struct rtnl_link *) obj, arg);
+      lcp_nl_link_add ((struct rtnl_link *) obj, arg);
+      break;
     case RTM_DELLINK:
-      return lcp_nl_link_del ((struct rtnl_link *) obj);
+      lcp_nl_link_del ((struct rtnl_link *) obj);
+      break;
     case RTM_NEWROUTE:
-      return lcp_nl_route_add ((struct rtnl_route *) obj);
+      lcp_nl_route_add ((struct rtnl_route *) obj);
+      break;
     case RTM_DELROUTE:
-      return lcp_nl_route_del ((struct rtnl_route *) obj);
+      lcp_nl_route_del ((struct rtnl_route *) obj);
+      break;
     default:
       NL_WARN ("dispatch: ignored %U", format_nl_object, obj);
       break;
     }
+  vlib_worker_thread_barrier_release (vlib_get_main ());
 }
 
 static int
