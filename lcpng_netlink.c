@@ -216,6 +216,10 @@ lcp_nl_dispatch (struct nl_object *obj, void *arg)
       return lcp_nl_link_add ((struct rtnl_link *) obj, arg);
     case RTM_DELLINK:
       return lcp_nl_link_del ((struct rtnl_link *) obj);
+    case RTM_NEWROUTE:
+      return lcp_nl_route_add ((struct rtnl_route *) obj);
+    case RTM_DELROUTE:
+      return lcp_nl_route_del ((struct rtnl_route *) obj);
     default:
       NL_WARN ("dispatch: ignored %U", format_nl_object, obj);
       break;
@@ -258,13 +262,15 @@ lcp_nl_process_msgs (void)
 
       if (++n_msgs >= nm->batch_size)
 	{
-	  NL_DBG ("process_msgs: batch_size reached");
+	  NL_INFO ("process_msgs: batch_size %d reached, yielding",
+		   nm->batch_size);
 	  break;
 	}
       usecs = (u64) (1e6 * (vlib_time_now (vlib_get_main ()) - start));
-      if (usecs >= 1e3 * NL_BATCH_DELAY_MS_DEF)
+      if (usecs >= 1e3 * nm->batch_delay_ms)
 	{
-	  NL_DBG ("process_msgs: batch_delay_ms reached");
+	  NL_INFO ("process_msgs: batch_delay_ms %s reached, yielding",
+		   nm->batch_delay_ms);
 	  break;
 	}
     }
@@ -274,9 +280,20 @@ lcp_nl_process_msgs (void)
     vec_delete (nm->nl_ns.nl_msg_queue, n_msgs, 0);
 
   if (n_msgs > 0)
-    NL_DBG (
-      "process_msgs: Processed %u messages in %llu usecs, %u left in queue",
-      n_msgs, usecs, vec_len (nm->nl_ns.nl_msg_queue));
+    {
+      if (vec_len (nm->nl_ns.nl_msg_queue))
+	{
+	  NL_WARN ("process_msgs: Processed %u messages in %llu usecs, %u "
+		   "left in queue",
+		   n_msgs, usecs, vec_len (nm->nl_ns.nl_msg_queue));
+	}
+      else
+	{
+	  NL_INFO ("process_msgs: Processed %u messages in %llu usecs, %u "
+		   "left in queue",
+		   n_msgs, usecs, vec_len (nm->nl_ns.nl_msg_queue));
+	}
+    }
 
   lcpm->lcp_sync = old_lcp_sync;
 
@@ -586,6 +603,13 @@ lcp_nl_init (vlib_main_t *vm)
   nm->nl_logger = vlib_log_register_class ("linux-cp", "nl");
 
   lcp_itf_pair_register_vft (&nl_itf_pair_vft);
+
+  /* Add two FIB sources: one for manual routes, one for dynamic routes
+   * See lcp_nl_proto_fib_source() */
+  nm->fib_src =
+    fib_source_allocate ("lcp-rt", FIB_SOURCE_PRIORITY_HI, FIB_SOURCE_BH_API);
+  nm->fib_src_dynamic = fib_source_allocate (
+    "lcp-rt-dynamic", FIB_SOURCE_PRIORITY_HI + 1, FIB_SOURCE_BH_API);
 
   return (NULL);
 }

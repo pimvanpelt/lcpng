@@ -39,6 +39,66 @@
    NUD_DELAY)
 #endif
 
+/*
+ * Map of supported route types. Some types are omitted:
+ * RTN_LOCAL - interface address addition creates these automatically
+ * RTN_BROADCAST - same as RTN_LOCAL
+ * RTN_UNSPEC, RTN_ANYCAST, RTN_THROW, RTN_NAT, RTN_XRESOLVE -
+ *   There's not a VPP equivalent for these currently.
+ */
+const static u8 lcp_nl_route_type_valid[__RTN_MAX] = {
+  [RTN_UNICAST] = 1,	 [RTN_MULTICAST] = 1, [RTN_BLACKHOLE] = 1,
+  [RTN_UNREACHABLE] = 1, [RTN_PROHIBIT] = 1,
+};
+
+/* Map of fib entry flags by route type */
+const static fib_entry_flag_t lcp_nl_route_type_feflags[__RTN_MAX] = {
+  [RTN_LOCAL] = FIB_ENTRY_FLAG_LOCAL | FIB_ENTRY_FLAG_CONNECTED,
+  [RTN_BROADCAST] = FIB_ENTRY_FLAG_DROP | FIB_ENTRY_FLAG_LOOSE_URPF_EXEMPT,
+  [RTN_BLACKHOLE] = FIB_ENTRY_FLAG_DROP,
+};
+
+/* Map of fib route path flags by route type */
+const static fib_route_path_flags_t lcp_nl_route_type_frpflags[__RTN_MAX] = {
+  [RTN_UNREACHABLE] = FIB_ROUTE_PATH_ICMP_UNREACH,
+  [RTN_PROHIBIT] = FIB_ROUTE_PATH_ICMP_PROHIBIT,
+  [RTN_BLACKHOLE] = FIB_ROUTE_PATH_DROP,
+};
+
+const static fib_prefix_t pfx_all1s = {
+  .fp_addr = {
+    .ip4 = {
+      .as_u32 = 0xffffffff,
+    }
+  },
+  .fp_proto = FIB_PROTOCOL_IP4,
+  .fp_len = 32,
+};
+
+const static mfib_prefix_t ip4_specials[] = {
+  /* ALL prefixes are in network order */
+  {
+   /* (*,224.0.0.0)/24 - all local subnet */
+   .fp_grp_addr = {
+		   .ip4.data_u32 = 0x000000e0,
+		   },
+   .fp_len = 24,
+   .fp_proto = FIB_PROTOCOL_IP4,
+   },
+};
+
+const static mfib_prefix_t ip6_specials[] = {
+  /* ALL prefixes are in network order */
+  {
+   /* (*,ff00::)/8 - all local subnet */
+   .fp_grp_addr = {
+		   .ip6.as_u64[0] = 0x00000000000000ff,
+		   },
+   .fp_len = 8,
+   .fp_proto = FIB_PROTOCOL_IP6,
+   },
+};
+
 static void
 lcp_nl_mk_ip_addr (const struct nl_addr *rna, ip_address_t *ia)
 {
@@ -83,6 +143,397 @@ vnet_sw_interface_get_available_subid (vnet_main_t *vnm, u32 sw_if_index,
 
   *id = -1;
   return 1;
+}
+
+static fib_protocol_t
+lcp_nl_mk_addr46 (const struct nl_addr *rna, ip46_address_t *ia)
+{
+  fib_protocol_t fproto;
+
+  fproto =
+    nl_addr_get_family (rna) == AF_INET6 ? FIB_PROTOCOL_IP6 : FIB_PROTOCOL_IP4;
+  ip46_address_reset (ia);
+  if (FIB_PROTOCOL_IP4 == fproto)
+    memcpy (&ia->ip4, nl_addr_get_binary_addr (rna), nl_addr_get_len (rna));
+  else
+    memcpy (&ia->ip6, nl_addr_get_binary_addr (rna), nl_addr_get_len (rna));
+
+  return (fproto);
+}
+
+static void
+lcp_nl_mk_route_prefix (struct rtnl_route *r, fib_prefix_t *p)
+{
+  const struct nl_addr *addr = rtnl_route_get_dst (r);
+
+  p->fp_len = nl_addr_get_prefixlen (addr);
+  p->fp_proto = lcp_nl_mk_addr46 (addr, &p->fp_addr);
+}
+
+static void
+lcp_nl_mk_route_mprefix (struct rtnl_route *r, mfib_prefix_t *p)
+{
+  const struct nl_addr *addr;
+
+  addr = rtnl_route_get_dst (r);
+
+  p->fp_len = nl_addr_get_prefixlen (addr);
+  p->fp_proto = lcp_nl_mk_addr46 (addr, &p->fp_grp_addr);
+
+  addr = rtnl_route_get_src (r);
+  if (addr)
+    p->fp_proto = lcp_nl_mk_addr46 (addr, &p->fp_src_addr);
+}
+
+static inline fib_source_t
+lcp_nl_proto_fib_source (u8 rt_proto)
+{
+  lcp_nl_main_t *nlm = &lcp_nl_main;
+
+  /* See /etc/iproute2/rt_protos for the list */
+  return (rt_proto <= RTPROT_STATIC) ? nlm->fib_src : nlm->fib_src_dynamic;
+}
+
+static fib_entry_flag_t
+lcp_nl_mk_route_entry_flags (uint8_t rtype, int table_id, uint8_t rproto)
+{
+  fib_entry_flag_t fef = FIB_ENTRY_FLAG_NONE;
+
+  fef |= lcp_nl_route_type_feflags[rtype];
+  if ((rproto == RTPROT_KERNEL) || PREDICT_FALSE (255 == table_id))
+    /* kernel proto is interface prefixes, 255 is linux's 'local' table */
+    fef |= FIB_ENTRY_FLAG_ATTACHED | FIB_ENTRY_FLAG_CONNECTED;
+
+  return (fef);
+}
+
+static void
+lcp_nl_route_path_parse (struct rtnl_nexthop *rnh, void *arg)
+{
+  lcp_nl_route_path_parse_t *ctx = arg;
+  fib_route_path_t *path;
+  lcp_itf_pair_t *lip;
+  fib_protocol_t fproto;
+  struct nl_addr *addr;
+
+  /* We do not log a warning/error here, because some routes (like
+   * blackhole/unreach) don't have an interface associated with them.
+   */
+  if (!(lip = lcp_itf_pair_get (
+	  lcp_itf_pair_find_by_vif (rtnl_route_nh_get_ifindex (rnh)))))
+    {
+      return;
+    }
+
+  vec_add2 (ctx->paths, path, 1);
+
+  path->frp_flags = FIB_ROUTE_PATH_FLAG_NONE | ctx->type_flags;
+  path->frp_sw_if_index = lip->lip_phy_sw_if_index;
+  path->frp_weight = rtnl_route_nh_get_weight (rnh);
+  path->frp_preference = ctx->preference;
+
+  addr = rtnl_route_nh_get_gateway (rnh);
+
+  if (addr)
+    fproto =
+      lcp_nl_mk_addr46 (rtnl_route_nh_get_gateway (rnh), &path->frp_addr);
+  else
+    fproto = ctx->route_proto;
+
+  path->frp_proto = fib_proto_to_dpo (fproto);
+
+  if (ctx->is_mcast)
+    path->frp_mitf_flags = MFIB_ITF_FLAG_FORWARD;
+
+  NL_DBG ("route_path_parse: path %U", format_fib_route_path, path);
+}
+
+/*
+ * blackhole, unreachable, prohibit will not have a next hop in an
+ * RTM_NEWROUTE. Add a path for them.
+ */
+static void
+lcp_nl_route_path_add_special (struct rtnl_route *rr,
+			       lcp_nl_route_path_parse_t *ctx)
+{
+  fib_route_path_t *path;
+
+  if (rtnl_route_get_type (rr) < RTN_BLACKHOLE)
+    return;
+
+  /* if it already has a path, it does not need us to add one */
+  if (vec_len (ctx->paths) > 0)
+    return;
+
+  vec_add2 (ctx->paths, path, 1);
+
+  path->frp_flags = FIB_ROUTE_PATH_FLAG_NONE | ctx->type_flags;
+  path->frp_sw_if_index = ~0;
+  path->frp_proto = fib_proto_to_dpo (ctx->route_proto);
+  path->frp_preference = ctx->preference;
+
+  NL_DBG ("route_path_add_special: path %U", format_fib_route_path, path);
+}
+
+static lcp_nl_table_t *
+lcp_nl_table_find (uint32_t id, fib_protocol_t fproto)
+{
+  lcp_nl_main_t *nlm = &lcp_nl_main;
+  uword *p;
+
+  p = hash_get (nlm->table_db[fproto], id);
+
+  if (p)
+    return pool_elt_at_index (nlm->table_pool, p[0]);
+
+  return (NULL);
+}
+
+static uint32_t
+lcp_nl_table_k2f (uint32_t k)
+{
+  // the kernel's table ID 255 is the default table
+  if (k == 255 || k == 254)
+    return 0;
+  return k;
+}
+
+static lcp_nl_table_t *
+lcp_nl_table_add_or_lock (uint32_t id, fib_protocol_t fproto)
+{
+  lcp_nl_table_t *nlt;
+  lcp_nl_main_t *nlm = &lcp_nl_main;
+
+  id = lcp_nl_table_k2f (id);
+  nlt = lcp_nl_table_find (id, fproto);
+
+  if (NULL == nlt)
+    {
+      pool_get_zero (nlm->table_pool, nlt);
+
+      nlt->nlt_id = id;
+      nlt->nlt_proto = fproto;
+
+      nlt->nlt_fib_index = fib_table_find_or_create_and_lock (
+	nlt->nlt_proto, nlt->nlt_id, nlm->fib_src);
+      nlt->nlt_mfib_index = mfib_table_find_or_create_and_lock (
+	nlt->nlt_proto, nlt->nlt_id, MFIB_SOURCE_PLUGIN_LOW);
+
+      hash_set (nlm->table_db[fproto], nlt->nlt_id, nlt - nlm->table_pool);
+
+      if (FIB_PROTOCOL_IP4 == fproto)
+	{
+	  /* Set the all 1s address in this table to punt */
+	  fib_table_entry_special_add (nlt->nlt_fib_index, &pfx_all1s,
+				       nlm->fib_src, FIB_ENTRY_FLAG_LOCAL);
+
+	  const fib_route_path_t path = {
+	    .frp_proto = DPO_PROTO_IP4,
+	    .frp_addr = zero_addr,
+	    .frp_sw_if_index = ~0,
+	    .frp_fib_index = ~0,
+	    .frp_weight = 1,
+	    .frp_mitf_flags = MFIB_ITF_FLAG_FORWARD,
+	    .frp_flags = FIB_ROUTE_PATH_LOCAL,
+	  };
+	  int ii;
+
+	  for (ii = 0; ii < ARRAY_LEN (ip4_specials); ii++)
+	    {
+	      mfib_table_entry_path_update (nlt->nlt_mfib_index,
+					    &ip4_specials[ii],
+					    MFIB_SOURCE_PLUGIN_LOW, &path);
+	    }
+	}
+      else if (FIB_PROTOCOL_IP6 == fproto)
+	{
+	  const fib_route_path_t path = {
+	    .frp_proto = DPO_PROTO_IP6,
+	    .frp_addr = zero_addr,
+	    .frp_sw_if_index = ~0,
+	    .frp_fib_index = ~0,
+	    .frp_weight = 1,
+	    .frp_mitf_flags = MFIB_ITF_FLAG_FORWARD,
+	    .frp_flags = FIB_ROUTE_PATH_LOCAL,
+	  };
+	  int ii;
+
+	  for (ii = 0; ii < ARRAY_LEN (ip6_specials); ii++)
+	    {
+	      mfib_table_entry_path_update (nlt->nlt_mfib_index,
+					    &ip6_specials[ii],
+					    MFIB_SOURCE_PLUGIN_LOW, &path);
+	    }
+	}
+    }
+
+  nlt->nlt_refs++;
+
+  return (nlt);
+}
+
+static void
+lcp_nl_table_unlock (lcp_nl_table_t *nlt)
+{
+  lcp_nl_main_t *nlm = &lcp_nl_main;
+  nlt->nlt_refs--;
+
+  if (0 == nlt->nlt_refs)
+    {
+      if (FIB_PROTOCOL_IP4 == nlt->nlt_proto)
+	{
+	  /* Remove the all 1s address in this table to punt */
+	  fib_table_entry_special_remove (nlt->nlt_fib_index, &pfx_all1s,
+					  nlm->fib_src);
+	}
+
+      fib_table_unlock (nlt->nlt_fib_index, nlt->nlt_proto, nlm->fib_src);
+
+      hash_unset (nlm->table_db[nlt->nlt_proto], nlt->nlt_id);
+      pool_put (nlm->table_pool, nlt);
+    }
+}
+
+void
+lcp_nl_route_del (struct rtnl_route *rr)
+{
+  uint32_t table_id;
+  fib_prefix_t pfx;
+  lcp_nl_table_t *nlt;
+  uint8_t rtype, rproto;
+
+  NL_DBG ("route_del: netlink %U", format_nl_object, rr);
+
+  rtype = rtnl_route_get_type (rr);
+  table_id = rtnl_route_get_table (rr);
+  rproto = rtnl_route_get_protocol (rr);
+
+  /* skip unsupported route types and local table */
+  if (!lcp_nl_route_type_valid[rtype] || (table_id == 255))
+    return;
+
+  lcp_nl_mk_route_prefix (rr, &pfx);
+  nlt = lcp_nl_table_find (lcp_nl_table_k2f (table_id), pfx.fp_proto);
+
+  if (NULL == nlt)
+    {
+      return;
+    }
+
+  lcp_nl_route_path_parse_t np = {
+    .route_proto = pfx.fp_proto,
+    .type_flags = lcp_nl_route_type_frpflags[rtype],
+  };
+
+  rtnl_route_foreach_nexthop (rr, lcp_nl_route_path_parse, &np);
+  lcp_nl_route_path_add_special (rr, &np);
+
+  if (0 != vec_len (np.paths))
+    {
+      fib_source_t fib_src = lcp_nl_proto_fib_source (rproto);
+      fib_entry_flag_t entry_flags;
+
+      entry_flags = lcp_nl_mk_route_entry_flags (rtype, table_id, rproto);
+      NL_INFO ("route_del: table %d prefix %U flags %U",
+	       rtnl_route_get_table (rr), format_fib_prefix, &pfx,
+	       format_fib_entry_flags, entry_flags);
+      if (pfx.fp_proto == FIB_PROTOCOL_IP6)
+	fib_table_entry_delete (nlt->nlt_fib_index, &pfx, fib_src);
+      else
+	fib_table_entry_path_remove2 (nlt->nlt_fib_index, &pfx, fib_src,
+				      np.paths);
+    }
+
+  vec_free (np.paths);
+
+  lcp_nl_table_unlock (nlt);
+}
+
+void
+lcp_nl_route_add (struct rtnl_route *rr)
+{
+  fib_entry_flag_t entry_flags;
+  uint32_t table_id;
+  fib_prefix_t pfx;
+  lcp_nl_table_t *nlt;
+  uint8_t rtype, rproto;
+
+  NL_DBG ("route_add: netlink %U", format_nl_object, rr);
+
+  rtype = rtnl_route_get_type (rr);
+  table_id = rtnl_route_get_table (rr);
+  rproto = rtnl_route_get_protocol (rr);
+
+  /* skip unsupported route types and local table */
+  if (!lcp_nl_route_type_valid[rtype] || (table_id == 255))
+    return;
+
+  lcp_nl_mk_route_prefix (rr, &pfx);
+  entry_flags = lcp_nl_mk_route_entry_flags (rtype, table_id, rproto);
+
+  /* link local IPv6 */
+  if (FIB_PROTOCOL_IP6 == pfx.fp_proto &&
+      (ip6_address_is_multicast (&pfx.fp_addr.ip6) ||
+       ip6_address_is_link_local_unicast (&pfx.fp_addr.ip6)))
+    {
+      NL_DBG ("route_add: skip table %d prefix %U flags %U",
+	      rtnl_route_get_table (rr), format_fib_prefix, &pfx,
+	      format_fib_entry_flags, entry_flags);
+      return;
+    }
+  lcp_nl_route_path_parse_t np = {
+    .route_proto = pfx.fp_proto,
+    .is_mcast = (rtype == RTN_MULTICAST),
+    .type_flags = lcp_nl_route_type_feflags[rtype],
+    .preference = (u8) rtnl_route_get_priority (rr),
+  };
+
+  rtnl_route_foreach_nexthop (rr, lcp_nl_route_path_parse, &np);
+
+  lcp_nl_route_path_add_special (rr, &np);
+
+  if (0 != vec_len (np.paths))
+    {
+      nlt = lcp_nl_table_add_or_lock (table_id, pfx.fp_proto);
+      if (rtype == RTN_MULTICAST)
+	{
+	  /* it's not clear to me how linux expresses the RPF paramters
+	   * so we'll allow from all interfaces and hope for the best */
+	  mfib_prefix_t mpfx = {};
+
+	  lcp_nl_mk_route_mprefix (rr, &mpfx);
+
+	  NL_INFO ("route_add: mcast table %d prefix %U flags %U",
+		   rtnl_route_get_table (rr), format_mfib_prefix, &mpfx,
+		   format_fib_entry_flags, entry_flags);
+	  mfib_table_entry_update (nlt->nlt_mfib_index, &mpfx,
+				   MFIB_SOURCE_PLUGIN_LOW, MFIB_RPF_ID_NONE,
+				   MFIB_ENTRY_FLAG_ACCEPT_ALL_ITF);
+
+	  mfib_table_entry_paths_update (nlt->nlt_mfib_index, &mpfx,
+					 MFIB_SOURCE_PLUGIN_LOW, np.paths);
+	}
+      else
+	{
+	  fib_source_t fib_src = lcp_nl_proto_fib_source (rproto);
+
+	  NL_INFO ("route_add: table %d prefix %U flags %U",
+		   rtnl_route_get_table (rr), format_fib_prefix, &pfx,
+		   format_fib_entry_flags, entry_flags);
+
+	  if (pfx.fp_proto == FIB_PROTOCOL_IP6)
+	    fib_table_entry_path_add2 (nlt->nlt_fib_index, &pfx, fib_src,
+				       entry_flags, np.paths);
+	  else
+	    fib_table_entry_update (nlt->nlt_fib_index, &pfx, fib_src,
+				    entry_flags, np.paths);
+	}
+    }
+  else
+    NL_ERROR ("route_add: no paths table %d prefix %U flags %U",
+	      rtnl_route_get_table (rr), format_fib_prefix, &pfx,
+	      format_fib_entry_flags, entry_flags);
+  vec_free (np.paths);
 }
 
 // Returns the LIP for a newly created sub-int pair, or
@@ -176,7 +627,7 @@ lcp_nl_link_add_vlan (struct rtnl_link *rl)
     }
 
   vlib_worker_thread_barrier_sync (vlib_get_main ());
-  NL_NOTICE (
+  NL_INFO (
     "link_add_vlan: creating subid %u outer %u inner %u flags %u on phy %U",
     subid, outer_vlan, inner_vlan, flags, format_vnet_sw_if_index_name, vnm,
     parent_sw->sup_sw_if_index);
@@ -206,7 +657,7 @@ lcp_nl_link_add_vlan (struct rtnl_link *rl)
       lcpm->lcp_auto_subint = old_lcp_auto_subint;
       return NULL;
     }
-  NL_NOTICE ("link_add_vlan: creating subid %u outer %u inner %u flags %u on "
+  NL_INFO ("link_add_vlan: creating subid %u outer %u inner %u flags %u on "
 	     "host %U phy %U",
 	     subid, outer_vlan, inner_vlan, flags,
 	     format_vnet_sw_if_index_name, vnm,
@@ -373,23 +824,11 @@ lcp_nl_link_add (struct rtnl_link *rl, void *ctx)
   lcp_nl_link_set_lladdr (rl, lip);
   vlib_worker_thread_barrier_release (vlib_get_main ());
 
-  NL_NOTICE ("link_add: %U admin %s", format_lcp_itf_pair, lip,
+  NL_INFO ("link_add: %U admin %s", format_lcp_itf_pair, lip,
 	     admin_state ? "up" : "down");
 
   return;
 }
-
-static const mfib_prefix_t ip4_specials[] = {
-  /* ALL prefixes are in network order */
-  {
-   /* (*,224.0.0.0)/24 - all local subnet */
-   .fp_grp_addr = {
-		   .ip4.data_u32 = 0x000000e0,
-		   },
-   .fp_len = 24,
-   .fp_proto = FIB_PROTOCOL_IP4,
-   },
-};
 
 static void
 lcp_nl_ip4_mroutes_add_del (u32 sw_if_index, u8 is_add)
@@ -422,18 +861,6 @@ lcp_nl_ip4_mroutes_add_del (u32 sw_if_index, u8 is_add)
 	}
     }
 }
-
-static const mfib_prefix_t ip6_specials[] = {
-  /* ALL prefixes are in network order */
-  {
-   /* (*,ff00::)/8 - all local subnet */
-   .fp_grp_addr = {
-		   .ip6.as_u64[0] = 0x00000000000000ff,
-		   },
-   .fp_len = 8,
-   .fp_proto = FIB_PROTOCOL_IP6,
-   },
-};
 
 static void
 lcp_nl_ip6_mroutes_add_del (u32 sw_if_index, u8 is_add)
@@ -577,10 +1004,9 @@ lcp_nl_neigh_add (struct rtnl_neigh *rn)
 	}
       else
 	{
-	  NL_NOTICE ("neigh_add: Added %U lladdr %U iface %U",
-		     format_ip_address, &nh, format_mac_address, &mac,
-		     format_vnet_sw_if_index_name, vnet_get_main (),
-		     lip->lip_phy_sw_if_index);
+	  NL_INFO ("neigh_add: Added %U lladdr %U iface %U", format_ip_address,
+		   &nh, format_mac_address, &mac, format_vnet_sw_if_index_name,
+		   vnet_get_main (), lip->lip_phy_sw_if_index);
 	}
     }
 }
@@ -607,9 +1033,9 @@ lcp_nl_neigh_del (struct rtnl_neigh *rn)
 
   if (rv == 0 || rv == VNET_API_ERROR_NO_SUCH_ENTRY)
     {
-      NL_NOTICE ("neigh_del: Deleted %U iface %U", format_ip_address, &nh,
-		 format_vnet_sw_if_index_name, vnet_get_main (),
-		 lip->lip_phy_sw_if_index);
+      NL_INFO ("neigh_del: Deleted %U iface %U", format_ip_address, &nh,
+	       format_vnet_sw_if_index_name, vnet_get_main (),
+	       lip->lip_phy_sw_if_index);
     }
   else
     {

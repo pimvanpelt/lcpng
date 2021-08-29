@@ -48,7 +48,7 @@ column shows changes in LInux that are copied into VPP.
 | Change MTU     | ✅            | ✅            |
 | Change MAC     | ❌ 1)         | ✅            |
 | Add/Del IP4/IP6 Address  | ✅  | ✅            | 
-| Route          | ❌ 2)         | 🟠            |
+| Route          | ❌ 2)         | ✅            |
 | Add/Del Tunnel | ❌            | ❌            |
 | Add/Del Phy    | ✅            | 🟠            |
 | Add/Del .1q    | ✅            | ✅            |
