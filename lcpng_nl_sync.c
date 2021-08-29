@@ -470,13 +470,21 @@ lcp_nl_route_add (struct rtnl_route *rr)
 
   lcp_nl_mk_route_prefix (rr, &pfx);
   entry_flags = lcp_nl_mk_route_entry_flags (rtype, table_id, rproto);
+  /* Connected is already inserted by ip[46]_add_del_interface_address() */
+  if (entry_flags & FIB_ENTRY_FLAG_CONNECTED)
+    {
+      NL_DBG ("route_add: skip connected table %d prefix %U flags %U",
+	      rtnl_route_get_table (rr), format_fib_prefix, &pfx,
+	      format_fib_entry_flags, entry_flags);
+      return;
+    }
 
   /* link local IPv6 */
   if (FIB_PROTOCOL_IP6 == pfx.fp_proto &&
       (ip6_address_is_multicast (&pfx.fp_addr.ip6) ||
        ip6_address_is_link_local_unicast (&pfx.fp_addr.ip6)))
     {
-      NL_DBG ("route_add: skip table %d prefix %U flags %U",
+      NL_DBG ("route_add: skip linklocal table %d prefix %U flags %U",
 	      rtnl_route_get_table (rr), format_fib_prefix, &pfx,
 	      format_fib_entry_flags, entry_flags);
       return;
@@ -489,8 +497,11 @@ lcp_nl_route_add (struct rtnl_route *rr)
   };
 
   rtnl_route_foreach_nexthop (rr, lcp_nl_route_path_parse, &np);
-
-  lcp_nl_route_path_add_special (rr, &np);
+  // TODO(pim) - figure out why we have spurious crashes when
+  // adding a route w/ nexthops {} or nexthops { idx 1 } on an
+  // empty FIB.
+  //
+  // lcp_nl_route_path_add_special (rr, &np);
 
   if (0 != vec_len (np.paths))
     {
@@ -530,9 +541,16 @@ lcp_nl_route_add (struct rtnl_route *rr)
 	}
     }
   else
-    NL_ERROR ("route_add: no paths table %d prefix %U flags %U",
-	      rtnl_route_get_table (rr), format_fib_prefix, &pfx,
-	      format_fib_entry_flags, entry_flags);
+    // TODO(pim) - while the above add_special() is commented out, any
+    // route inserted tiwh unreach/prohibit/blackhole, for example when VPP
+    // is restarted, Bird will flip all routes in the RIB to 'unreach', and
+    // when it rediscovers devices and their connecteds, it will send a whole
+    // bunch of them back. Ignore for now. When add_special() is fixed, this
+    // should become a WARN again.
+    NL_INFO ("route_add: no paths table %d prefix %U flags %U netlink %U",
+	     rtnl_route_get_table (rr), format_fib_prefix, &pfx,
+	     format_fib_entry_flags, entry_flags, format_nl_object, rr);
+
   vec_free (np.paths);
 }
 
