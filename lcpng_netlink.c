@@ -300,9 +300,7 @@ lcp_nl_process_msgs (void)
 	}
       else
 	{
-	  NL_INFO ("process_msgs: Processed %u messages in %llu usecs, %u "
-		   "left in queue",
-		   n_msgs, usecs, vec_len (nm->nl_ns.nl_msg_queue));
+	  NL_INFO ("process_msgs: Processed %u messages in %llu usecs", n_msgs, usecs);
 	}
     }
 
