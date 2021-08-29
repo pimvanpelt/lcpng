@@ -470,14 +470,6 @@ lcp_nl_route_add (struct rtnl_route *rr)
 
   lcp_nl_mk_route_prefix (rr, &pfx);
   entry_flags = lcp_nl_mk_route_entry_flags (rtype, table_id, rproto);
-  /* Connected is already inserted by ip[46]_add_del_interface_address() */
-  if (entry_flags & FIB_ENTRY_FLAG_CONNECTED)
-    {
-      NL_DBG ("route_add: skip connected table %d prefix %U flags %U",
-	      rtnl_route_get_table (rr), format_fib_prefix, &pfx,
-	      format_fib_entry_flags, entry_flags);
-      return;
-    }
 
   /* link local IPv6 */
   if (FIB_PROTOCOL_IP6 == pfx.fp_proto &&
