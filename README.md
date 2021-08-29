@@ -127,3 +127,28 @@ linux-cp/if          [debug ]: mtu_change: sw TwentyFiveGigabitEthernete/0/1 0
 
 DBGvpp# 
 ```
+
+
+### Pinging BondEthernet
+
+10.1.1.2        : xmt/rcv/%loss = 30000/29833/0%, min/avg/max = 0.11/0.50/10.6
+10.1.2.2        : xmt/rcv/%loss = 30000/29856/0%, min/avg/max = 0.10/0.50/10.8
+10.1.3.2        : xmt/rcv/%loss = 30000/29851/0%, min/avg/max = 0.10/0.51/10.7
+10.1.4.2        : xmt/rcv/%loss = 30000/29848/0%, min/avg/max = 0.12/0.51/10.8
+10.1.5.2        : xmt/rcv/%loss = 30000/29841/0%, min/avg/max = 0.11/0.51/11.7
+10.0.1.2        : xmt/rcv/%loss = 30000/30000/0%, min/avg/max = 0.09/0.21/40.4
+10.0.2.2        : xmt/rcv/%loss = 30000/30000/0%, min/avg/max = 0.10/0.21/30.4
+10.0.3.2        : xmt/rcv/%loss = 30000/30000/0%, min/avg/max = 0.10/0.19/20.4
+10.0.4.2        : xmt/rcv/%loss = 30000/30000/0%, min/avg/max = 0.10/0.18/10.3
+10.0.5.2        : xmt/rcv/%loss = 30000/30000/0%, min/avg/max = 0.10/0.19/8.50
+2001:db8:1:1::2 : xmt/rcv/%loss = 30000/29853/0%, min/avg/max = 0.12/0.52/10.7
+2001:db8:1:2::2 : xmt/rcv/%loss = 30000/29870/0%, min/avg/max = 0.08/0.56/10.9
+2001:db8:1:3::2 : xmt/rcv/%loss = 30000/29857/0%, min/avg/max = 0.11/0.52/11.1
+2001:db8:1:4::2 : xmt/rcv/%loss = 30000/29866/0%, min/avg/max = 0.11/0.56/10.9
+2001:db8:1:5::2 : xmt/rcv/%loss = 30000/29864/0%, min/avg/max = 0.10/0.57/11.1
+2001:db8:0:1::2 : xmt/rcv/%loss = 30000/30000/0%, min/avg/max = 0.10/0.23/8.33
+2001:db8:0:2::2 : xmt/rcv/%loss = 30000/30000/0%, min/avg/max = 0.10/0.21/8.27
+2001:db8:0:3::2 : xmt/rcv/%loss = 30000/30000/0%, min/avg/max = 0.10/0.20/8.20
+2001:db8:0:4::2 : xmt/rcv/%loss = 30000/29999/0%, min/avg/max = 0.11/0.19/8.49
+2001:db8:0:5::2 : xmt/rcv/%loss = 30000/29999/0%, min/avg/max = 0.10/0.19/8.46
+
