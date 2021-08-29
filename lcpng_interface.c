@@ -227,14 +227,24 @@ lcp_itf_pair_add (u32 host_sw_if_index, u32 phy_sw_if_index, u8 *host_name,
 
   lipi = lcp_itf_pair_find_by_phy (phy_sw_if_index);
 
-  LCP_ITF_PAIR_INFO ("pair_add: host:%U phy:%U, host_if:%v vif:%d ns:%s",
+  if (lipi != INDEX_INVALID)
+    return VNET_API_ERROR_VALUE_EXIST;
+
+  if (host_sw_if_index == ~0) {
+    LCP_ITF_PAIR_ERR ("pair_add: Cannot add LIP - invalid host");
+    return VNET_API_ERROR_INVALID_SW_IF_INDEX;
+  }
+
+  if (phy_sw_if_index == ~0) {
+    LCP_ITF_PAIR_ERR ("pair_add: Cannot add LIP - invalid phy");
+    return VNET_API_ERROR_INVALID_SW_IF_INDEX;
+  }
+
+  LCP_ITF_PAIR_NOTICE ("pair_add: Adding LIP for host:%U phy:%U, host_if:%v vif:%d ns:%s",
 		     format_vnet_sw_if_index_name, vnet_get_main (),
 		     host_sw_if_index, format_vnet_sw_if_index_name,
 		     vnet_get_main (), phy_sw_if_index, host_name, host_index,
 		     ns);
-
-  if (lipi != INDEX_INVALID)
-    return VNET_API_ERROR_VALUE_EXIST;
 
   /*
    * Create a new pair.
@@ -259,9 +269,6 @@ lcp_itf_pair_add (u32 host_sw_if_index, u32 phy_sw_if_index, u8 *host_name,
   lip->lip_namespace = 0;
   if (ns && ns[0] != 0)
     lip->lip_namespace = (u8 *) strdup ((const char *) ns);
-
-  if (lip->lip_host_sw_if_index == ~0)
-    return 0;
 
   /*
    * First use of this host interface.
@@ -406,7 +413,7 @@ lcp_itf_pair_del (u32 phy_sw_if_index)
 
   lip = lcp_itf_pair_get (lipi);
 
-  LCP_ITF_PAIR_INFO (
+  LCP_ITF_PAIR_NOTICE (
     "pair_del: host:%U phy:%U host_if:%s vif:%d ns:%s",
     format_vnet_sw_if_index_name, vnet_get_main (), lip->lip_host_sw_if_index,
     format_vnet_sw_if_index_name, vnet_get_main (), lip->lip_phy_sw_if_index,
@@ -673,7 +680,7 @@ lcp_itf_set_interface_addr (const lcp_itf_pair_t *lip)
   foreach_ip_interface_address (
     lm4, ia, lip->lip_phy_sw_if_index, 1 /* honor unnumbered */, ({
       ip4_address_t *r4 = ip_interface_address_get_address (lm4, ia);
-      LCP_ITF_PAIR_INFO ("set_interface_addr: %U add ip4 %U/%d",
+      LCP_ITF_PAIR_NOTICE ("set_interface_addr: %U add ip4 %U/%d",
 			 format_lcp_itf_pair, lip, format_ip4_address, r4,
 			 ia->address_length);
       vnet_netlink_add_ip4_addr (lip->lip_vif_index, r4, ia->address_length);
@@ -683,7 +690,7 @@ lcp_itf_set_interface_addr (const lcp_itf_pair_t *lip)
   foreach_ip_interface_address (
     lm6, ia, lip->lip_phy_sw_if_index, 1 /* honor unnumbered */, ({
       ip6_address_t *r6 = ip_interface_address_get_address (lm6, ia);
-      LCP_ITF_PAIR_INFO ("set_interface_addr: %U add ip6 %U/%d",
+      LCP_ITF_PAIR_NOTICE ("set_interface_addr: %U add ip6 %U/%d",
 			 format_lcp_itf_pair, lip, format_ip6_address, r6,
 			 ia->address_length);
       vnet_netlink_add_ip6_addr (lip->lip_vif_index, r6, ia->address_length);
@@ -842,7 +849,7 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
        * - if this is an inner VLAN, find the pair from the outer sub-int, which must exist.
        */
       if (inner_vlan) {
-        LCP_ITF_PAIR_INFO ("pair_create: trying to create dot1%s %d inner-dot1q %d on %U",
+        LCP_ITF_PAIR_DBG ("pair_create: trying to create dot1%s %d inner-dot1q %d on %U",
 			sw->sub.eth.flags.dot1ad?"ad":"q", outer_vlan, inner_vlan,
                         format_vnet_sw_if_index_name, vnet_get_main (), hw->sw_if_index);
 	vlan=inner_vlan;
@@ -858,7 +865,7 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
           return VNET_API_ERROR_INVALID_SW_IF_INDEX;
 	}
       } else {
-        LCP_ITF_PAIR_INFO ("pair_create: trying to create dot1%s %d on %U",
+        LCP_ITF_PAIR_DBG ("pair_create: trying to create dot1%s %d on %U",
 			   sw->sub.eth.flags.dot1ad?"ad":"q", outer_vlan,
 			   format_vnet_sw_if_index_name, vnet_get_main (), hw->sw_if_index);
 	vlan=outer_vlan;
