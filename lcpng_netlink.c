@@ -262,14 +262,14 @@ lcp_nl_process_msgs (void)
 
       if (++n_msgs >= nm->batch_size)
 	{
-	  NL_INFO ("process_msgs: batch_size %d reached, yielding",
+	  NL_INFO ("process_msgs: batch_size %u reached, yielding",
 		   nm->batch_size);
 	  break;
 	}
       usecs = (u64) (1e6 * (vlib_time_now (vlib_get_main ()) - start));
       if (usecs >= 1e3 * nm->batch_delay_ms)
 	{
-	  NL_INFO ("process_msgs: batch_delay_ms %s reached, yielding",
+	  NL_INFO ("process_msgs: batch_delay_ms %u reached, yielding",
 		   nm->batch_delay_ms);
 	  break;
 	}
