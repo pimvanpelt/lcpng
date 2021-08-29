@@ -36,8 +36,9 @@ typedef enum nl_event_type_t_
 
 #define NL_RX_BUF_SIZE_DEF    (1 << 27) /* 128 MB */
 #define NL_TX_BUF_SIZE_DEF    (1 << 18) /* 256 kB */
-#define NL_BATCH_SIZE_DEF     (1 << 11) /* 2048 */
-#define NL_BATCH_DELAY_MS_DEF 50	/* 50 ms, max 20 batch/s */
+#define NL_BATCH_SIZE_DEF     (1 << 13) /* 8192 */
+#define NL_BATCH_WORK_MS_DEF  40	/* 40 ms */
+#define NL_BATCH_DELAY_MS_DEF 10	/* 10 ms, max 20 batch/s */
 
 #define NL_DBG(...)    vlib_log_debug (lcp_nl_main.nl_logger, __VA_ARGS__);
 #define NL_INFO(...)   vlib_log_info (lcp_nl_main.nl_logger, __VA_ARGS__);
@@ -90,6 +91,7 @@ typedef struct lcp_nl_main
   u32 rx_buf_size;
   u32 tx_buf_size;
   u32 batch_size;
+  u32 batch_work_ms;
   u32 batch_delay_ms;
 
 } lcp_nl_main_t;

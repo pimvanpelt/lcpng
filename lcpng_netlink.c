@@ -47,6 +47,7 @@ lcp_nl_main_t lcp_nl_main = {
   .rx_buf_size = NL_RX_BUF_SIZE_DEF,
   .tx_buf_size = NL_TX_BUF_SIZE_DEF,
   .batch_size = NL_BATCH_SIZE_DEF,
+  .batch_work_ms = NL_BATCH_WORK_MS_DEF,
   .batch_delay_ms = NL_BATCH_DELAY_MS_DEF,
 };
 
@@ -255,7 +256,7 @@ lcp_nl_process_msgs (void)
   lcpm->lcp_sync = 0;
 
   /* process a batch of messages. break if we hit our batch_size
-   * count limit or batch_delay_ms time limit.
+   * count limit or batch_work_ms time limit.
    *
    * We do this, because netlink messages will continue to be sourced
    * by the kernel, and we need to periodically read them before they
@@ -277,10 +278,10 @@ lcp_nl_process_msgs (void)
 	  break;
 	}
       usecs = (u64) (1e6 * (vlib_time_now (vlib_get_main ()) - start));
-      if (usecs >= 1e3 * nm->batch_delay_ms)
+      if (usecs >= 1e3 * nm->batch_work_ms)
 	{
-	  NL_INFO ("process_msgs: batch_delay_ms %u reached, yielding",
-		   nm->batch_delay_ms);
+	  NL_INFO ("process_msgs: batch_work_ms %u reached, yielding",
+		   nm->batch_work_ms);
 	  break;
 	}
     }
