@@ -300,7 +300,8 @@ lcp_nl_process_msgs (void)
 	}
       else
 	{
-	  NL_INFO ("process_msgs: Processed %u messages in %llu usecs", n_msgs, usecs);
+	  NL_INFO ("process_msgs: Processed %u messages in %llu usecs", n_msgs,
+		   usecs);
 	}
     }
 
@@ -518,6 +519,7 @@ lcp_nl_open_socket (u8 *ns)
 {
   lcp_nl_main_t *nm = &lcp_nl_main;
   int dest_ns_fd = -1, orig_ns_fd = -1;
+  int err;
 
   /* Switch to the correct network namespace, if specified. Otherwise,
    * use the default namespace.
@@ -554,8 +556,13 @@ lcp_nl_open_socket (u8 *ns)
 
   /* Set socket in nonblocking mode and increase buffer sizes */
   nl_socket_set_nonblocking (nm->nl_ns.sk_route);
-  nl_socket_set_buffer_size (nm->nl_ns.sk_route, nm->rx_buf_size,
-			     nm->tx_buf_size);
+  err = nl_socket_set_buffer_size (nm->nl_ns.sk_route, nm->rx_buf_size,
+				   nm->tx_buf_size);
+  if (err != 0)
+    {
+      NL_ERROR ("open_socket: Failed to set buffer size tx %u rx %u error %s",
+		nm->tx_buf_size, nm->rx_buf_size, nl_geterror (err));
+    }
 
   if (dest_ns_fd != -1)
     close (dest_ns_fd);
