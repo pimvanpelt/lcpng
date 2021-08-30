@@ -264,11 +264,7 @@ lcp_itf_pair_add (u32 host_sw_if_index, u32 phy_sw_if_index, u8 *host_name,
   lip->lip_host_name = vec_dup (host_name);
   lip->lip_host_type = host_type;
   lip->lip_vif_index = host_index;
-
-  // TODO(pim) - understand why vec_dup(ns) returns 'nil' here
-  lip->lip_namespace = 0;
-  if (ns && ns[0] != 0)
-    lip->lip_namespace = (u8 *) strdup ((const char *) ns);
+  lip->lip_namespace = vec_dup (ns);
 
   /*
    * First use of this host interface.
@@ -457,8 +453,7 @@ lcp_itf_pair_del (u32 phy_sw_if_index)
   hash_unset (lip_db_by_vif, lip->lip_vif_index);
 
   vec_free (lip->lip_host_name);
-  if (lip->lip_namespace)
-    free (lip->lip_namespace);
+  vec_free (lip->lip_namespace);
   pool_put (lcp_itf_pair_pool, lip);
 
   return 0;
