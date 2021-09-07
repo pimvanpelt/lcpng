@@ -808,18 +808,19 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
       outer_proto = inner_proto = ETH_P_8021Q;
       if (1 == sw->sub.eth.flags.dot1ad) outer_proto = ETH_P_8021AD;
 
+      LCP_ITF_PAIR_INFO (
+	"pair_create: createing dot1%s %d inner-dot1q %d on %U",
+	sw->sub.eth.flags.dot1ad ? "ad" : "q", outer_vlan, inner_vlan,
+	format_vnet_sw_if_index_name, vnet_get_main (), hw->sw_if_index);
+      parent_if_index = lcp_itf_pair_find_by_phy (sw->sup_sw_if_index);
       /*
        * Find the parent tap:
        * - if this is an outer VLAN, find the pair from the parent phy
        * - if this is an inner VLAN, find the pair from the outer sub-int, which must exist.
        */
       if (inner_vlan) {
-        LCP_ITF_PAIR_DBG ("pair_create: trying to create dot1%s %d inner-dot1q %d on %U",
-			sw->sub.eth.flags.dot1ad?"ad":"q", outer_vlan, inner_vlan,
-                        format_vnet_sw_if_index_name, vnet_get_main (), hw->sw_if_index);
 	vlan=inner_vlan;
 	proto=inner_proto;
-        parent_if_index = lcp_itf_pair_find_by_phy (sw->sup_sw_if_index);
 	linux_parent_if_index = lcp_itf_pair_find_by_outer_vlan (
 	  sw->sup_sw_if_index, sw->sub.eth.outer_vlan_id,
 	  sw->sub.eth.flags.dot1ad);
@@ -830,12 +831,8 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
           return VNET_API_ERROR_INVALID_SW_IF_INDEX;
 	}
       } else {
-        LCP_ITF_PAIR_DBG ("pair_create: trying to create dot1%s %d on %U",
-			   sw->sub.eth.flags.dot1ad?"ad":"q", outer_vlan,
-			   format_vnet_sw_if_index_name, vnet_get_main (), hw->sw_if_index);
 	vlan=outer_vlan;
 	proto=outer_proto;
-        parent_if_index = lcp_itf_pair_find_by_phy (sw->sup_sw_if_index);
         linux_parent_if_index = parent_if_index;
       }
 
