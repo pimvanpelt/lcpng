@@ -838,45 +838,6 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
       parent_vif_index = lip->lip_vif_index;
 
       /*
-       * Find the parent tap:
-       * - if this is an outer VLAN, find the pair from the parent phy
-       * - if this is an inner VLAN, find the pair from the outer sub-int, which must exist.
-       */
-      if (inner_vlan) {
-	  index_t linux_parent_if_index;
-	  const lcp_itf_pair_t *llip;
-
-	  vlan = inner_vlan;
-	  proto = inner_proto;
-	  linux_parent_if_index = lcp_itf_pair_find_by_outer_vlan (
-	    sw->sup_sw_if_index, sw->sub.eth.outer_vlan_id,
-	    sw->sub.eth.flags.dot1ad);
-	  if (INDEX_INVALID == linux_parent_if_index)
-	    {
-	      LCP_ITF_PAIR_ERR (
-		"pair_create: can't find LCP for outer vlan %d proto %s on %U",
-		outer_vlan, outer_proto == ETH_P_8021AD ? "dot1ad" : "dot1q",
-		format_vnet_sw_if_index_name, vnet_get_main (),
-		hw->sw_if_index);
-	      return VNET_API_ERROR_INVALID_SW_IF_INDEX;
-	    }
-	  llip = lcp_itf_pair_get (linux_parent_if_index);
-	  if (!llip)
-	    {
-	      LCP_ITF_PAIR_ERR ("pair_create: can't create LCP for a "
-				"sub-interface without a valid Linux parent");
-	      return VNET_API_ERROR_INVALID_ARGUMENT;
-	    }
-
-	  LCP_ITF_PAIR_DBG ("pair_create: linux parent %U",
-			    format_lcp_itf_pair, llip);
-	  parent_vif_index = llip->lip_vif_index;
-      } else {
-	vlan=outer_vlan;
-	proto=outer_proto;
-      }
-
-      /*
        * see if the requested host interface has already been created
        */
       orig_ns_fd = vif_ns_fd = -1;
@@ -899,6 +860,52 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
 	  /*
 	   * no existing host interface, create it now
 	   */
+	  /*
+	   * Find the parent tap:
+	   * - if this is an outer VLAN, find the pair from the parent phy
+	   * - if this is an inner VLAN, find the pair from the outer sub-int,
+	   * which must exist.
+	   */
+	  if (inner_vlan)
+	    {
+	      index_t linux_parent_if_index;
+	      const lcp_itf_pair_t *llip;
+
+	      vlan = inner_vlan;
+	      proto = inner_proto;
+	      linux_parent_if_index = lcp_itf_pair_find_by_outer_vlan (
+		sw->sup_sw_if_index, sw->sub.eth.outer_vlan_id,
+		sw->sub.eth.flags.dot1ad);
+	      if (INDEX_INVALID == linux_parent_if_index)
+		{
+		  LCP_ITF_PAIR_ERR ("pair_create: can't find LCP for outer "
+				    "vlan %d proto %s on %U",
+				    outer_vlan,
+				    outer_proto == ETH_P_8021AD ? "dot1ad" :
+								  "dot1q",
+				    format_vnet_sw_if_index_name,
+				    vnet_get_main (), hw->sw_if_index);
+		  return VNET_API_ERROR_INVALID_SW_IF_INDEX;
+		}
+	      llip = lcp_itf_pair_get (linux_parent_if_index);
+	      if (!llip)
+		{
+		  LCP_ITF_PAIR_ERR (
+		    "pair_create: can't create LCP for a "
+		    "sub-interface without a valid Linux parent");
+		  return VNET_API_ERROR_INVALID_ARGUMENT;
+		}
+
+	      LCP_ITF_PAIR_DBG ("pair_create: linux parent %U",
+				format_lcp_itf_pair, llip);
+	      parent_vif_index = llip->lip_vif_index;
+	    }
+	  else
+	    {
+	      vlan = outer_vlan;
+	      proto = outer_proto;
+	    }
+
 	  err = lcp_netlink_add_link_vlan (parent_vif_index, vlan, proto,
 					   (const char *) host_if_name);
 	  if (err != 0) {
