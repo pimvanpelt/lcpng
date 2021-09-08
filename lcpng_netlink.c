@@ -532,8 +532,8 @@ lcp_nl_open_socket (u8 *ns)
       orig_ns_fd = clib_netns_open (NULL /* self */);
       dest_ns_fd = clib_netns_open (ns);
       clib_setns (dest_ns_fd);
+      nm->nl_ns.netns_name = vec_dup (ns);
     }
-  clib_memcpy (nm->nl_ns.netns_name, ns, sizeof (nm->nl_ns.netns_name));
 
   /* Allocate a new socket for netlink messages.
    * Notifications do not use sequence numbers, disable sequence number

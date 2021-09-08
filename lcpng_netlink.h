@@ -62,7 +62,7 @@ typedef struct lcp_nl_netlink_namespace
 			    // namespace
   u32 clib_file_lcp_refcnt; // number of interfaces watched in the this netlink
 			    // namespace
-  u8 netns_name[LCP_NS_LEN]; // namespace name (can be empty, for 'self')
+  u8 *netns_name;	    // namespace name (can be empty, for 'self')
 } lcp_nl_netlink_namespace_t;
 
 typedef struct lcp_nl_table_t_
