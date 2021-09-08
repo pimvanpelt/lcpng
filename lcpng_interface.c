@@ -601,6 +601,7 @@ void
 lcp_itf_set_link_state (const lcp_itf_pair_t *lip, u8 state)
 {
   vnet_main_t *vnm = vnet_get_main ();
+  vnet_sw_interface_t *si;
   int curr_ns_fd, vif_ns_fd;
 
   if (!lip) return;
@@ -628,6 +629,11 @@ lcp_itf_set_link_state (const lcp_itf_pair_t *lip, u8 state)
       vnet_sw_interface_admin_down (vnm, lip->lip_host_sw_if_index);
     }
   vnet_netlink_set_link_state (lip->lip_vif_index, state);
+
+  /* Set carrier (oper link) on the TAP
+   */
+  si = vnet_get_sw_interface_or_null (vnm, lip->lip_host_sw_if_index);
+  tap_set_carrier (si->hw_if_index, state);
 
   if (vif_ns_fd != -1)
     close (vif_ns_fd);
