@@ -203,13 +203,15 @@ void lcp_itf_ip6_add_del_interface_addr (ip6_main_t *im, uword opaque,
 					 u32 address_length,
 					 u32 if_address_index, u32 is_del);
 
-/* Sync all state from VPP to a specific Linux device, or all of them.
+/* Sync all state from VPP to a specific Linux device, all sub-interfaces
+ * of a hardware interface, or all interfaces in the system.
  *
  * Note: in some circumstances, this syncer will (have to) make changes to
  * the VPP interface, for example if its MTU is greater than its parent.
  * See the function for rationale.
  */
 void lcp_itf_pair_sync_state (lcp_itf_pair_t *lip);
+void lcp_itf_pair_sync_state_hw (vnet_hw_interface_t *hi);
 void lcp_itf_pair_sync_state_all ();
 
 /*

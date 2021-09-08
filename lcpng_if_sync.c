@@ -103,7 +103,7 @@ lcp_itf_pair_sync_state (lcp_itf_pair_t *lip)
 	vnet_netlink_set_link_mtu (lip->lip_vif_index, mtu);
     }
 
-  /* Linux will remove IPv6 addresses on children when the master state
+  /* Linux will remove IPv6 addresses on children when the parent state
    * goes down, so we ensure all IPv4/IPv6 addresses are synced.
    */
   lcp_itf_set_interface_addr (lip);
@@ -132,10 +132,44 @@ lcp_itf_pair_walk_sync_state_all_cb (index_t lipi, void *ctx)
   return WALK_CONTINUE;
 }
 
+static walk_rc_t
+lcp_itf_pair_walk_sync_state_hw_cb (vnet_main_t *vnm, u32 sw_if_index,
+				    void *arg)
+{
+  const vnet_sw_interface_t *sw;
+  lcp_itf_pair_t *lip;
+
+  sw = vnet_get_sw_interface (vnm, sw_if_index);
+  if (!sw)
+    {
+      return WALK_CONTINUE;
+    }
+  lip = lcp_itf_pair_get (lcp_itf_pair_find_by_phy (sw->sw_if_index));
+  if (!lip)
+    {
+      return WALK_CONTINUE;
+    }
+
+  lcp_itf_pair_sync_state (lip);
+  return WALK_CONTINUE;
+}
+
 void
 lcp_itf_pair_sync_state_all ()
 {
   lcp_itf_pair_walk (lcp_itf_pair_walk_sync_state_all_cb, 0);
+}
+
+void
+lcp_itf_pair_sync_state_hw (vnet_hw_interface_t *hi)
+{
+  if (!hi)
+    return;
+  LCP_ITF_PAIR_DBG ("sync_state_hw: hi %U", format_vnet_sw_if_index_name,
+		    vnet_get_main (), hi->hw_if_index);
+
+  vnet_hw_interface_walk_sw (vnet_get_main (), hi->hw_if_index,
+			     lcp_itf_pair_walk_sync_state_hw_cb, NULL);
 }
 
 static clib_error_t *
@@ -188,11 +222,12 @@ lcp_itf_admin_state_change (vnet_main_t * vnm, u32 sw_if_index, u32 flags)
   tap_set_carrier (si->hw_if_index,
 		   (si->flags & VNET_SW_INTERFACE_FLAG_ADMIN_UP));
 
-  // When Linux changes link on a master interface, all of its children also
-  // change. This is not true in VPP, so we are forced to undo that change by
-  // walking the sub-interfaces of a phy and syncing their state back into
-  // linux. For simplicity, just walk all interfaces.
-  lcp_itf_pair_sync_state_all ();
+  // When Linux changes link on a parent interface, all of its children also
+  // change. If a parent interface changes MTU, all of its children are clamped
+  // at that MTU by Linux. Neither holds true in VPP, so we are forced to undo
+  // change by walking the sub-interfaces of a phy and syncing their state back
+  // into Linux.
+  lcp_itf_pair_sync_state_hw (hi);
 
   return NULL;
 }   
@@ -202,7 +237,7 @@ VNET_SW_INTERFACE_ADMIN_UP_DOWN_FUNCTION(lcp_itf_admin_state_change);
 static clib_error_t *
 lcp_itf_mtu_change (vnet_main_t *vnm, u32 sw_if_index, u32 flags)
 {
-  lcp_itf_pair_t *lip;
+  vnet_hw_interface_t *hi;
   if (!lcp_lcp_sync ())
     return NULL;
 
@@ -210,11 +245,10 @@ lcp_itf_mtu_change (vnet_main_t *vnm, u32 sw_if_index, u32 flags)
 		    sw_if_index, flags);
 
   // Sync interface state changes into host
-  lip = lcp_itf_pair_get (lcp_itf_pair_find_by_phy (sw_if_index));
-  if (!lip)
+  hi = vnet_get_hw_interface_or_null (vnm, sw_if_index);
+  if (!hi)
     return NULL;
-
-  lcp_itf_pair_sync_state_all ();
+  lcp_itf_pair_sync_state_hw (hi);
 
   return NULL;
 }
