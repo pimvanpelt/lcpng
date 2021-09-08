@@ -27,6 +27,7 @@
 #include <plugins/lcpng/lcpng_interface.h>
 #include <plugins/lcpng/lcpng_netlink.h>
 
+#include <vnet/devices/tap/tap.h>
 #include <vnet/fib/fib_table.h>
 #include <vnet/mfib/mfib_table.h>
 #include <vnet/ip/ip6_ll_table.h>
@@ -793,6 +794,7 @@ lcp_nl_link_add (struct rtnl_link *rl, void *ctx)
 {
   vnet_main_t *vnm = vnet_get_main ();
   lcp_itf_pair_t *lip;
+  vnet_sw_interface_t *si;
   int admin_state;
 
   NL_DBG ("link_add: netlink %U", format_nl_object, rl);
@@ -809,6 +811,8 @@ lcp_nl_link_add (struct rtnl_link *rl, void *ctx)
     }
 
   admin_state = (IFF_UP & rtnl_link_get_flags (rl));
+  // Note: cannot use lcp_itf_set_link_state() here because it creates a loop
+  // by sending a netlink message.
   if (admin_state)
     {
       vnet_sw_interface_admin_up (vnm, lip->lip_host_sw_if_index);
@@ -819,6 +823,10 @@ lcp_nl_link_add (struct rtnl_link *rl, void *ctx)
       vnet_sw_interface_admin_down (vnm, lip->lip_phy_sw_if_index);
       vnet_sw_interface_admin_down (vnm, lip->lip_host_sw_if_index);
     }
+  /* Set carrier (oper link) on the TAP
+   */
+  si = vnet_get_sw_interface_or_null (vnm, lip->lip_host_sw_if_index);
+  tap_set_carrier (si->hw_if_index, admin_state);
 
   lcp_nl_link_set_mtu (rl, lip);
   lcp_nl_link_set_lladdr (rl, lip);
