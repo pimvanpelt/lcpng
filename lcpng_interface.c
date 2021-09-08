@@ -809,7 +809,7 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
       if (1 == sw->sub.eth.flags.dot1ad) outer_proto = ETH_P_8021AD;
 
       LCP_ITF_PAIR_INFO (
-	"pair_create: createing dot1%s %d inner-dot1q %d on %U",
+	"pair_create: creating dot1%s %d inner-dot1q %d on %U",
 	sw->sub.eth.flags.dot1ad ? "ad" : "q", outer_vlan, inner_vlan,
 	format_vnet_sw_if_index_name, vnet_get_main (), hw->sw_if_index);
 
@@ -907,13 +907,20 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
       /*
        * create a sub-interface on the tap
        */
-      if (!err && vnet_create_sub_interface (lip->lip_host_sw_if_index,
-					     sw->sub.id, sw->sub.eth.raw_flags,
-					     inner_vlan, outer_vlan,
-					     &host_sw_if_index))
-	LCP_ITF_PAIR_ERR ("pair_create: failed to create tap subint: %d.%d on %U", outer_vlan, inner_vlan,
-			   format_vnet_sw_if_index_name, vnet_get_main (),
-			   lip->lip_host_sw_if_index);
+      if (!err &&
+	  vnet_create_sub_interface (lip->lip_host_sw_if_index, sw->sub.id,
+				     sw->sub.eth.raw_flags, inner_vlan,
+				     outer_vlan, &host_sw_if_index))
+	{
+	  LCP_ITF_PAIR_ERR (
+	    "pair_create: failed to create tap subint: %d.%d on %U",
+	    outer_vlan, inner_vlan, format_vnet_sw_if_index_name,
+	    vnet_get_main (), lip->lip_host_sw_if_index);
+	  err = clib_error_return (
+	    0, "failed to create tap subint: %d.%d on %U", outer_vlan,
+	    inner_vlan, format_vnet_sw_if_index_name, vnet_get_main (),
+	    lip->lip_host_sw_if_index);
+	}
 
     socket_close:
       if (orig_ns_fd != -1)
