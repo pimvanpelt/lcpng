@@ -99,7 +99,7 @@ format_lcp_itf_pair (u8 *s, va_list *args)
 	      (lip->lip_host_type == LCP_ITF_HOST_TAP) ? "tap" : "tun");
 
   if (lip->lip_namespace)
-    s = format (s, " netns %s", lip->lip_namespace);
+    s = format (s, " netns %v", lip->lip_namespace);
 
   return s;
 }
@@ -129,7 +129,7 @@ lcp_itf_pair_show (u32 phy_sw_if_index)
 
   vm = vlib_get_main ();
   ns = lcp_get_default_ns();
-  vlib_cli_output (vm, "lcp default netns %s\n", ns ? (char *) ns : "<unset>");
+  vlib_cli_output (vm, "lcp default netns %v\n", ns ? (char *) ns : "<unset>");
   vlib_cli_output (vm, "lcp lcp-auto-subint %s\n",
 		   lcp_lcp_auto_subint () ? "on" : "off");
   vlib_cli_output (vm, "lcp lcp-sync %s\n", lcp_lcp_sync () ? "on" : "off");
@@ -240,11 +240,11 @@ lcp_itf_pair_add (u32 host_sw_if_index, u32 phy_sw_if_index, u8 *host_name,
     return VNET_API_ERROR_INVALID_SW_IF_INDEX;
   }
 
-  LCP_ITF_PAIR_NOTICE ("pair_add: Adding LIP for host:%U phy:%U, host_if:%v vif:%d ns:%s",
-		     format_vnet_sw_if_index_name, vnet_get_main (),
-		     host_sw_if_index, format_vnet_sw_if_index_name,
-		     vnet_get_main (), phy_sw_if_index, host_name, host_index,
-		     ns);
+  LCP_ITF_PAIR_NOTICE (
+    "pair_add: Adding LIP for host:%U phy:%U, host_if:%v vif:%d ns:%v",
+    format_vnet_sw_if_index_name, vnet_get_main (), host_sw_if_index,
+    format_vnet_sw_if_index_name, vnet_get_main (), phy_sw_if_index, host_name,
+    host_index, ns);
 
   /*
    * Create a new pair.
@@ -402,7 +402,7 @@ lcp_itf_pair_del (u32 phy_sw_if_index)
   lip = lcp_itf_pair_get (lipi);
 
   LCP_ITF_PAIR_NOTICE (
-    "pair_del: host:%U phy:%U host_if:%s vif:%d ns:%s",
+    "pair_del: host:%U phy:%U host_if:%v vif:%d ns:%v",
     format_vnet_sw_if_index_name, vnet_get_main (), lip->lip_host_sw_if_index,
     format_vnet_sw_if_index_name, vnet_get_main (), lip->lip_phy_sw_if_index,
     lip->lip_host_name, lip->lip_vif_index, lip->lip_namespace);
