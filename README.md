@@ -72,7 +72,7 @@ Then check out this plugin out-of-tree and symlink it in.
 mkdir ~/src
 cd ~/src
 git clone https://github.com/pimvanpelt/lcpng.git
-ln -s ~/src/vpp/src/plugins/lcpng ~src/lcpng
+ln -s ~src/lcpng ~/src/vpp/src/plugins/lcpng
 ```
 
 ## Running
