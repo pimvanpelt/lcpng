@@ -407,11 +407,10 @@ lcp_nl_pair_add_cb (lcp_itf_pair_t *lip)
 	  nm->nl_ns.clib_file_lcp_refcnt);
 
   if ((nm->nl_ns.clib_file_lcp_refcnt > 0) &&
-      clib_memcmp ((char *) nm->nl_ns.netns_name, (char *) lip->lip_namespace,
-		   strlen ((char *) lip->lip_namespace)))
+      vec_cmp(nm->nl_ns.netns_name, lip->lip_namespace))
     {
-      NL_WARN ("pair_add_cb: Existing netlink listener for netns %s -- this "
-	       "itf-pair is in netns %s, will not be listened!",
+      NL_WARN ("pair_add_cb: Existing netlink listener for netns %v -- this "
+	       "itf-pair is in netns %v, will not be listened!",
 	       nm->nl_ns.netns_name, lip->lip_namespace);
       return;
     }
