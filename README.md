@@ -72,7 +72,7 @@ Then check out this plugin out-of-tree and symlink it in.
 mkdir ~/src
 cd ~/src
 git clone https://github.com/pimvanpelt/lcpng.git
-ln -s ~src/lcpng ~/src/vpp/src/plugins/lcpng
+ln -s ~/src/lcpng ~/src/vpp/src/plugins/lcpng
 ```
 
 ## Running
@@ -131,6 +131,9 @@ DBGvpp#
 
 ### Pinging BondEthernet
 
+Interesting packetloss and latency increase seen on the BondEthernet0 interfaces (`10.1.*.2`)
+versus TenGigabitEthernet (`10.0.*.2`) interfaces:
+```
 10.1.1.2        : xmt/rcv/%loss = 30000/29833/0%, min/avg/max = 0.11/0.50/10.6
 10.1.2.2        : xmt/rcv/%loss = 30000/29856/0%, min/avg/max = 0.10/0.50/10.8
 10.1.3.2        : xmt/rcv/%loss = 30000/29851/0%, min/avg/max = 0.10/0.51/10.7
@@ -151,4 +154,5 @@ DBGvpp#
 2001:db8:0:3::2 : xmt/rcv/%loss = 30000/30000/0%, min/avg/max = 0.10/0.20/8.20
 2001:db8:0:4::2 : xmt/rcv/%loss = 30000/29999/0%, min/avg/max = 0.11/0.19/8.49
 2001:db8:0:5::2 : xmt/rcv/%loss = 30000/29999/0%, min/avg/max = 0.10/0.19/8.46
+```
 
