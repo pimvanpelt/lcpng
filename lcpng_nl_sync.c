@@ -341,9 +341,9 @@ lcp_nl_table_add_or_lock (uint32_t id, fib_protocol_t fproto)
 
 	  for (ii = 0; ii < ARRAY_LEN (ip4_specials); ii++)
 	    {
-	      mfib_table_entry_path_update (nlt->nlt_mfib_index,
-					    &ip4_specials[ii],
-					    MFIB_SOURCE_PLUGIN_LOW, &path);
+	      mfib_table_entry_path_update (
+		nlt->nlt_mfib_index, &ip4_specials[ii], MFIB_SOURCE_PLUGIN_LOW,
+		MFIB_ENTRY_FLAG_NONE, &path);
 	    }
 	}
       else if (FIB_PROTOCOL_IP6 == fproto)
@@ -361,9 +361,9 @@ lcp_nl_table_add_or_lock (uint32_t id, fib_protocol_t fproto)
 
 	  for (ii = 0; ii < ARRAY_LEN (ip6_specials); ii++)
 	    {
-	      mfib_table_entry_path_update (nlt->nlt_mfib_index,
-					    &ip6_specials[ii],
-					    MFIB_SOURCE_PLUGIN_LOW, &path);
+	      mfib_table_entry_path_update (
+		nlt->nlt_mfib_index, &ip6_specials[ii], MFIB_SOURCE_PLUGIN_LOW,
+		MFIB_ENTRY_FLAG_NONE, &path);
 	    }
 	}
     }
@@ -515,7 +515,8 @@ lcp_nl_route_add (struct rtnl_route *rr)
 				   MFIB_ENTRY_FLAG_ACCEPT_ALL_ITF);
 
 	  mfib_table_entry_paths_update (nlt->nlt_mfib_index, &mpfx,
-					 MFIB_SOURCE_PLUGIN_LOW, np.paths);
+					 MFIB_SOURCE_PLUGIN_LOW,
+					 MFIB_ENTRY_FLAG_NONE, np.paths);
 	}
       else
 	{
@@ -859,7 +860,8 @@ lcp_nl_ip4_mroutes_add_del (u32 sw_if_index, u8 is_add)
       if (is_add)
 	{
 	  mfib_table_entry_path_update (mfib_index, &ip4_specials[ii],
-					MFIB_SOURCE_PLUGIN_LOW, &path);
+					MFIB_SOURCE_PLUGIN_LOW,
+					MFIB_ENTRY_FLAG_NONE, &path);
 	}
       else
 	{
@@ -891,7 +893,8 @@ lcp_nl_ip6_mroutes_add_del (u32 sw_if_index, u8 is_add)
       if (is_add)
 	{
 	  mfib_table_entry_path_update (mfib_index, &ip6_specials[ii],
-					MFIB_SOURCE_PLUGIN_LOW, &path);
+					MFIB_SOURCE_PLUGIN_LOW,
+					MFIB_ENTRY_FLAG_NONE, &path);
 	}
       else
 	{
