@@ -131,8 +131,8 @@ lcp_itf_pair_show (u32 phy_sw_if_index)
   ns = lcp_get_default_ns();
   vlib_cli_output (vm, "lcp default netns %v\n", ns ? (char *) ns : "<unset>");
   vlib_cli_output (vm, "lcp lcp-auto-subint %s\n",
-		   lcp_lcp_auto_subint () ? "on" : "off");
-  vlib_cli_output (vm, "lcp lcp-sync %s\n", lcp_lcp_sync () ? "on" : "off");
+		   lcp_auto_subint () ? "on" : "off");
+  vlib_cli_output (vm, "lcp lcp-sync %s\n", lcp_sync () ? "on" : "off");
 
   if (phy_sw_if_index == ~0)
     {
@@ -545,9 +545,9 @@ lcp_itf_pair_config (vlib_main_t *vm, unformat_input_t *input)
 	    }
 	}
       else if (unformat (input, "lcp-auto-subint"))
-	lcp_set_lcp_auto_subint (1 /* is_auto */);
+	lcp_set_auto_subint (1 /* is_auto */);
       else if (unformat (input, "lcp-sync"))
-	lcp_set_lcp_sync (1 /* is_auto */);
+	lcp_set_sync (1 /* is_auto */);
       else
 	return clib_error_return (0, "unknown input `%U'",
 				  format_unformat_error, input);
@@ -601,7 +601,6 @@ void
 lcp_itf_set_link_state (const lcp_itf_pair_t *lip, u8 state)
 {
   vnet_main_t *vnm = vnet_get_main ();
-  vnet_sw_interface_t *si;
   int curr_ns_fd, vif_ns_fd;
 
   if (!lip) return;
@@ -620,20 +619,13 @@ lcp_itf_set_link_state (const lcp_itf_pair_t *lip, u8 state)
    */
   if (state)
     {
-      vnet_sw_interface_admin_up (vnm, lip->lip_host_sw_if_index);
       vnet_sw_interface_admin_up (vnm, lip->lip_phy_sw_if_index);
     }
   else
     {
       vnet_sw_interface_admin_down (vnm, lip->lip_phy_sw_if_index);
-      vnet_sw_interface_admin_down (vnm, lip->lip_host_sw_if_index);
     }
   vnet_netlink_set_link_state (lip->lip_vif_index, state);
-
-  /* Set carrier (oper link) on the TAP
-   */
-  si = vnet_get_sw_interface_or_null (vnm, lip->lip_host_sw_if_index);
-  tap_set_carrier (si->hw_if_index, state);
 
   if (vif_ns_fd != -1)
     close (vif_ns_fd);
@@ -1041,7 +1033,7 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
    * The TAP is shared by many interfaces, always keep it up.
    */
   vnet_sw_interface_admin_up (vnm, host_sw_if_index);
-  if (lcp_lcp_sync ())
+  if (lcp_sync ())
     {
       lip = lcp_itf_pair_get (lcp_itf_pair_find_by_vif (vif_index));
       lcp_itf_pair_sync_state (lip);
@@ -1110,13 +1102,45 @@ lcp_itf_pair_replace_end (void)
 }
 
 static clib_error_t *
+lcp_itf_pair_link_up_down (vnet_main_t *vnm, u32 hw_if_index, u32 flags)
+{
+  vnet_hw_interface_t *hi;
+  vnet_sw_interface_t *si;
+  index_t lipi;
+  lcp_itf_pair_t *lip;
+
+  hi = vnet_get_hw_interface_or_null (vnm, hw_if_index);
+  if (!hi)
+    return 0;
+
+  lipi = lcp_itf_pair_find_by_phy (hi->sw_if_index);
+  if (lipi == INDEX_INVALID)
+    return 0;
+
+  lip = lcp_itf_pair_get (lipi);
+  si = vnet_get_sw_interface_or_null (vnm, lip->lip_host_sw_if_index);
+  if (!si)
+    return 0;
+
+  if (!lcp_main.test_mode)
+    {
+      tap_set_carrier (si->hw_if_index,
+		       (flags & VNET_HW_INTERFACE_FLAG_LINK_UP));
+
+      if (flags & VNET_HW_INTERFACE_FLAG_LINK_UP)
+	{
+	  tap_set_speed (si->hw_if_index, hi->link_speed / 1000);
+	}
+    }
+
+  return 0;
+}
+
+VNET_HW_INTERFACE_LINK_UP_DOWN_FUNCTION (lcp_itf_pair_link_up_down);
+
+static clib_error_t *
 lcp_itf_pair_init (vlib_main_t *vm)
 {
-  ip4_main_t *im4 = &ip4_main;
-  ip6_main_t *im6 = &ip6_main;
-  ip4_add_del_interface_address_callback_t cb4;
-  ip6_add_del_interface_address_callback_t cb6;
-
   vlib_punt_hdl_t punt_hdl = vlib_punt_client_register("linux-cp");
   lcp_itf_pair_logger = vlib_log_register_class ("linux-cp", "if");
 
@@ -1129,14 +1153,6 @@ lcp_itf_pair_init (vlib_main_t *vm)
   udp_punt_unknown (vm, 1, 1);
   tcp_punt_unknown (vm, 0, 1);
   tcp_punt_unknown (vm, 1, 1);
-
-  cb4.function = lcp_itf_ip4_add_del_interface_addr;
-  cb4.function_opaque = 0;
-  vec_add1 (im4->add_del_interface_address_callbacks, cb4);
-
-  cb6.function = lcp_itf_ip6_add_del_interface_addr;
-  cb6.function_opaque = 0;
-  vec_add1 (im6->add_del_interface_address_callbacks, cb6);
 
   return NULL;
 }

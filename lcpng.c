@@ -70,7 +70,7 @@ int lcp_set_default_ns(u8 *ns) {
 }
 
 void
-lcp_set_lcp_sync (u8 is_auto)
+lcp_set_sync (u8 is_auto)
 {
   lcp_main_t *lcpm = &lcp_main;
 
@@ -82,7 +82,7 @@ lcp_set_lcp_sync (u8 is_auto)
 }
 
 int
-lcp_lcp_sync (void)
+lcp_sync (void)
 {
   lcp_main_t *lcpm = &lcp_main;
 
@@ -90,7 +90,7 @@ lcp_lcp_sync (void)
 }
 
 void
-lcp_set_lcp_auto_subint (u8 is_auto)
+lcp_set_auto_subint (u8 is_auto)
 {
   lcp_main_t *lcpm = &lcp_main;
 
@@ -98,7 +98,7 @@ lcp_set_lcp_auto_subint (u8 is_auto)
 }
 
 int
-lcp_lcp_auto_subint (void)
+lcp_auto_subint (void)
 {
   lcp_main_t *lcpm = &lcp_main;
 
