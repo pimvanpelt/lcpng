@@ -1101,6 +1101,23 @@ lcp_itf_pair_replace_end (void)
   return (0);
 }
 
+/**
+ * lcp_itf_interface_add_del
+ *
+ * Registered to receive interface Add and delete notifications
+ */
+static clib_error_t *
+lcp_itf_interface_add_del (vnet_main_t *vnm, u32 sw_if_index, u32 is_add)
+{
+  if (!is_add)
+    /* remove any interface pair we have for this interface */
+    lcp_itf_pair_delete (sw_if_index);
+
+  return (NULL);
+}
+
+VNET_SW_INTERFACE_ADD_DEL_FUNCTION (lcp_itf_interface_add_del);
+
 static clib_error_t *
 lcp_itf_pair_link_up_down (vnet_main_t *vnm, u32 hw_if_index, u32 flags)
 {
