@@ -795,7 +795,6 @@ lcp_nl_link_add (struct rtnl_link *rl, void *ctx)
 {
   vnet_main_t *vnm = vnet_get_main ();
   lcp_itf_pair_t *lip;
-  vnet_sw_interface_t *si;
   int admin_state;
 
   NL_DBG ("link_add: netlink %U", format_nl_object, rl);
@@ -816,18 +815,12 @@ lcp_nl_link_add (struct rtnl_link *rl, void *ctx)
   // by sending a netlink message.
   if (admin_state)
     {
-      vnet_sw_interface_admin_up (vnm, lip->lip_host_sw_if_index);
       vnet_sw_interface_admin_up (vnm, lip->lip_phy_sw_if_index);
     }
   else
     {
       vnet_sw_interface_admin_down (vnm, lip->lip_phy_sw_if_index);
-      vnet_sw_interface_admin_down (vnm, lip->lip_host_sw_if_index);
     }
-  /* Set carrier (oper link) on the TAP
-   */
-  si = vnet_get_sw_interface_or_null (vnm, lip->lip_host_sw_if_index);
-  tap_set_carrier (si->hw_if_index, admin_state);
 
   lcp_nl_link_set_mtu (rl, lip);
   lcp_nl_link_set_lladdr (rl, lip);

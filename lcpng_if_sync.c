@@ -15,26 +15,15 @@
  * limitations under the License.
  */
 
-#include <sys/socket.h>
-#include <linux/if.h>
+#include <linux/rtnetlink.h>
 
 #include <vnet/vnet.h>
 #include <vnet/plugin/plugin.h>
-
+#include <vnet/devices/netlink.h>
+#include <vnet/ip/ip.h>
 #include <vppinfra/linux/netns.h>
 
 #include <plugins/lcpng/lcpng_interface.h>
-
-#include <vlibapi/api.h>
-#include <vlibmemory/api.h>
-#include <vpp/app/version.h>
-#include <vnet/format_fns.h>
-#include <vnet/udp/udp.h>
-#include <vnet/tcp/tcp.h>
-#include <vnet/devices/tap/tap.h>
-#include <vnet/devices/netlink.h>
-#include <linux/netlink.h>
-#include <linux/rtnetlink.h>
 
 /* helper function to copy forward all sw interface link state flags
  * MTU, and IP addresses into their counterpart LIP interface.
@@ -51,7 +40,7 @@ lcp_itf_pair_sync_state (lcp_itf_pair_t *lip)
   u32 mtu;
   u32 netlink_mtu;
 
-  if (!lcp_lcp_sync ())
+  if (!lcp_sync ())
     return;
 
   sw =
@@ -85,7 +74,7 @@ lcp_itf_pair_sync_state (lcp_itf_pair_t *lip)
 	"forcing state to sup-flags to satisfy netlink",
 	format_lcp_itf_pair, lip, sw->flags, sup_sw->flags,
 	sw->mtu[VNET_MTU_L3], sup_sw->mtu[VNET_MTU_L3]);
-      state = sup_sw->flags & VNET_SW_INTERFACE_FLAG_ADMIN_UP;
+      state = 0;
     }
   lcp_itf_set_link_state (lip, state);
 
@@ -151,15 +140,9 @@ static walk_rc_t
 lcp_itf_pair_walk_sync_state_hw_cb (vnet_main_t *vnm, u32 sw_if_index,
 				    void *arg)
 {
-  const vnet_sw_interface_t *sw;
   lcp_itf_pair_t *lip;
 
-  sw = vnet_get_sw_interface (vnm, sw_if_index);
-  if (!sw)
-    {
-      return WALK_CONTINUE;
-    }
-  lip = lcp_itf_pair_get (lcp_itf_pair_find_by_phy (sw->sw_if_index));
+  lip = lcp_itf_pair_get (lcp_itf_pair_find_by_phy (sw_if_index));
   if (!lip)
     {
       return WALK_CONTINUE;
@@ -194,7 +177,7 @@ lcp_itf_admin_state_change (vnet_main_t * vnm, u32 sw_if_index, u32 flags)
   vnet_hw_interface_t *hi;
   vnet_sw_interface_t *si;
 
-  if (!lcp_lcp_sync ())
+  if (!lcp_sync ())
     return 0;
 
   LCP_ITF_PAIR_DBG ("admin_state_change: sw %U %u",
@@ -240,7 +223,7 @@ lcp_itf_mtu_change (vnet_main_t *vnm, u32 sw_if_index, u32 flags)
 {
   vnet_sw_interface_t *si;
   vnet_hw_interface_t *hi;
-  if (!lcp_lcp_sync ())
+  if (!lcp_sync ())
     return NULL;
 
   LCP_ITF_PAIR_DBG ("mtu_change: sw %U %u", format_vnet_sw_if_index_name, vnm,
@@ -415,7 +398,7 @@ vnet_netlink_del_ip6_addr (int ifindex, void *addr, int pfx_len)
 }
 // TODO(pim) move previous block upstream
 
-void
+static void
 lcp_itf_ip4_add_del_interface_addr (ip4_main_t *im, uword opaque,
 				    u32 sw_if_index, ip4_address_t *address,
 				    u32 address_length, u32 if_address_index,
@@ -425,7 +408,7 @@ lcp_itf_ip4_add_del_interface_addr (ip4_main_t *im, uword opaque,
   int curr_ns_fd = -1;
   int vif_ns_fd = -1;
 
-  if (!lcp_lcp_sync ())
+  if (!lcp_sync ())
     return;
 
   LCP_ITF_PAIR_DBG ("ip4_addr_%s: si:%U %U/%u", is_del ? "del" : "add",
@@ -464,7 +447,7 @@ lcp_itf_ip4_add_del_interface_addr (ip4_main_t *im, uword opaque,
   return;
 }
 
-void
+static void
 lcp_itf_ip6_add_del_interface_addr (ip6_main_t *im, uword opaque,
 				    u32 sw_if_index, ip6_address_t *address,
 				    u32 address_length, u32 if_address_index,
@@ -474,7 +457,7 @@ lcp_itf_ip6_add_del_interface_addr (ip6_main_t *im, uword opaque,
   int curr_ns_fd = -1;
   int vif_ns_fd = -1;
 
-  if (!lcp_lcp_sync ())
+  if (!lcp_sync ())
     return;
 
   LCP_ITF_PAIR_DBG ("ip6_addr_%s: si:%U %U/%u", is_del ? "del" : "add",
@@ -516,18 +499,13 @@ lcp_itf_interface_add_del (vnet_main_t *vnm, u32 sw_if_index, u32 is_create)
   const vnet_sw_interface_t *sw;
   uword is_sub;
 
-  is_sub = vnet_sw_interface_is_sub (vnm, sw_if_index);
-  LCP_ITF_PAIR_DBG ("interface_%s: [%u] sw %U is_sub %u lcp-auto-subint %u",
-		    is_create ? "add" : "del", sw_if_index,
-		    format_vnet_sw_if_index_name, vnet_get_main (),
-		    sw_if_index, is_sub, lcp_lcp_auto_subint ());
-
-  if (!lcp_lcp_auto_subint ())
+  if (!lcp_auto_subint ())
     return NULL;
 
   sw = vnet_get_sw_interface_or_null (vnm, sw_if_index);
   if (!sw)
     return NULL;
+  is_sub = vnet_sw_interface_is_sub (vnm, sw_if_index);
   if (!is_sub)
     return NULL;
 
@@ -561,12 +539,6 @@ lcp_itf_interface_add_del (vnet_main_t *vnm, u32 sw_if_index, u32 is_create)
     }
   else
     {
-      const lcp_itf_pair_t *lip;
-
-      // If the interface has a LIP, auto-delete it
-      lip = lcp_itf_pair_get (lcp_itf_pair_find_by_phy (sw_if_index));
-      if (!lip)
-	return NULL;
       lcp_itf_pair_delete (sw_if_index);
     }
 
@@ -574,3 +546,35 @@ lcp_itf_interface_add_del (vnet_main_t *vnm, u32 sw_if_index, u32 is_create)
 }
 
 VNET_SW_INTERFACE_ADD_DEL_FUNCTION (lcp_itf_interface_add_del);
+
+static clib_error_t *
+lcp_itf_sync_init (vlib_main_t *vm)
+{
+  ip4_main_t *im4 = &ip4_main;
+  ip6_main_t *im6 = &ip6_main;
+
+  ip4_add_del_interface_address_callback_t cb4;
+  ip6_add_del_interface_address_callback_t cb6;
+
+  cb4.function = lcp_itf_ip4_add_del_interface_addr;
+  cb4.function_opaque = 0;
+  vec_add1 (im4->add_del_interface_address_callbacks, cb4);
+
+  cb6.function = lcp_itf_ip6_add_del_interface_addr;
+  cb6.function_opaque = 0;
+  vec_add1 (im6->add_del_interface_address_callbacks, cb6);
+
+  return NULL;
+}
+
+VLIB_INIT_FUNCTION (lcp_itf_sync_init) = {
+  .runs_after = VLIB_INITS ("vnet_interface_init", "tcp_init", "udp_init"),
+};
+
+/*
+ * fd.io coding-style-patch-verification: ON
+ *
+ * Local Variables:
+ * eval: (c-set-style "gnu")
+ * End:
+ */
