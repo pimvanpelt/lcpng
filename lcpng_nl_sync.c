@@ -485,7 +485,7 @@ lcp_nl_route_add (struct rtnl_route *rr)
   lcp_nl_route_path_parse_t np = {
     .route_proto = pfx.fp_proto,
     .is_mcast = (rtype == RTN_MULTICAST),
-    .type_flags = lcp_nl_route_type_feflags[rtype],
+    .type_flags = lcp_nl_route_type_frpflags[rtype],
     .preference = (u8) rtnl_route_get_priority (rr),
   };
 
