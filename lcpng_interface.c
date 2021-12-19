@@ -129,7 +129,7 @@ lcp_itf_pair_show (u32 phy_sw_if_index)
 
   vm = vlib_get_main ();
   ns = lcp_get_default_ns();
-  vlib_cli_output (vm, "lcp default netns %v\n", ns ? (char *) ns : "<unset>");
+  vlib_cli_output (vm, "lcp default netns %v\n", ns);
   vlib_cli_output (vm, "lcp lcp-auto-subint %s\n",
 		   lcp_auto_subint () ? "on" : "off");
   vlib_cli_output (vm, "lcp lcp-sync %s\n", lcp_sync () ? "on" : "off");

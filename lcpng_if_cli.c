@@ -194,7 +194,7 @@ static clib_error_t *lcp_default_netns_command_fn(vlib_main_t *vm,
 
   unformat_free(line_input);
 
-  vlib_cli_output(vm, "lcp set default netns '%s'\n", (char *)ns);
+  vlib_cli_output(vm, "lcp set default netns %v\n", ns);
 
   r = lcp_set_default_ns(ns);
 
