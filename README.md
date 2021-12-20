@@ -66,13 +66,18 @@ Legend: ✅=supported; 🟠=maybe; ❌=infeasible.
 
 First, ensure that you can build and run 'vanilla' VPP by using the
 [instructions](https://wiki.fd.io/view/VPP/Pulling,_Building,_Running,_Hacking_and_Pushing_VPP_Code).
-Then check out this plugin out-of-tree and symlink it in.
+Then install one missing dependency (Netlink library), check out this plugin out-of-tree,
+symlink it in, and (re)build the code.
 
 ```
+apt-get install libmnl-dev
 mkdir ~/src
 cd ~/src
 git clone https://github.com/pimvanpelt/lcpng.git
 ln -s ~/src/lcpng ~/src/vpp/src/plugins/lcpng
+cd ~/src/vpp
+make rebuild
+make rebuild-release
 ```
 
 ## Running
