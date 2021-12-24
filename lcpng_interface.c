@@ -993,6 +993,10 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
       else
         vnet_sw_interface_set_mtu (vnm, args.sw_if_index, ETHERNET_MAX_PACKET_BYTES);
 
+      /* Initialize the TAP carrier based on the (hardware) phy
+       */
+      tap_set_carrier (args.sw_if_index, (hw->flags & VNET_HW_INTERFACE_FLAG_LINK_UP));
+
       /*
        * get the hw and ethernet of the tap
        */
