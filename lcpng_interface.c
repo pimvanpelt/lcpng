@@ -993,10 +993,12 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
       else
         vnet_sw_interface_set_mtu (vnm, args.sw_if_index, ETHERNET_MAX_PACKET_BYTES);
 
-      /* Initialize the TAP carrier based on the (hardware) phy
+      /* TODO(pim) - figure out why we cannot initalize the carrier. Ideally, once
+       * the first TAP is created, we copy forward the link-carrier from the hardware.
+       * However, this provokes a crash on interfaces which are carrier down.
+       *
+       * tap_set_carrier (args.sw_if_index, (hw->flags & VNET_HW_INTERFACE_FLAG_LINK_UP));
        */
-      if (hw->flags & VNET_HW_INTERFACE_FLAG_LINK_UP)
-	tap_set_carrier (args.sw_if_index, 1);
 
       /*
        * get the hw and ethernet of the tap
