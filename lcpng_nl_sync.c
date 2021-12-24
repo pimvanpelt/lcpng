@@ -490,11 +490,7 @@ lcp_nl_route_add (struct rtnl_route *rr)
   };
 
   rtnl_route_foreach_nexthop (rr, lcp_nl_route_path_parse, &np);
-  // TODO(pim) - figure out why we have spurious crashes when
-  // adding a route w/ nexthops {} or nexthops { idx 1 } on an
-  // empty FIB.
-  //
-  // lcp_nl_route_path_add_special (rr, &np);
+  lcp_nl_route_path_add_special (rr, &np);
 
   if (0 != vec_len (np.paths))
     {
@@ -535,13 +531,7 @@ lcp_nl_route_add (struct rtnl_route *rr)
 	}
     }
   else
-    // TODO(pim) - while the above add_special() is commented out, any
-    // route inserted tiwh unreach/prohibit/blackhole, for example when VPP
-    // is restarted, Bird will flip all routes in the RIB to 'unreach', and
-    // when it rediscovers devices and their connecteds, it will send a whole
-    // bunch of them back. Ignore for now. When add_special() is fixed, this
-    // should become a WARN again.
-    NL_INFO ("route_add: no paths table %d prefix %U flags %U netlink %U",
+    NL_WARN ("route_add: no paths table %d prefix %U flags %U netlink %U",
 	     rtnl_route_get_table (rr), format_fib_prefix, &pfx,
 	     format_fib_entry_flags, entry_flags, format_nl_object, rr);
 
