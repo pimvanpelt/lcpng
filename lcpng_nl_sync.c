@@ -674,6 +674,8 @@ lcp_nl_link_add_vlan (struct rtnl_link *rl)
       lcpm->lcp_auto_subint = old_lcp_auto_subint;
       return NULL;
     }
+  // Always keep sub-int on the TAP up
+  vnet_sw_interface_admin_up (vnm, host_sw_if_index);
   NL_NOTICE ("link_add_vlan: Creating LCP for host %U phy %U name %s idx %d",
 	     format_vnet_sw_if_index_name, vnm, host_sw_if_index,
 	     format_vnet_sw_if_index_name, vnm, phy_sw_if_index,
