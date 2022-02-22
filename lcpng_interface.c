@@ -311,10 +311,13 @@ lcp_itf_pair_add (u32 host_sw_if_index, u32 phy_sw_if_index, u8 *host_name,
     }
   else
     {
-      vnet_feature_enable_disable("ip4-punt", "linux-cp-punt-l3", 0, 1, NULL,
-                                  0);
-      vnet_feature_enable_disable("ip6-punt", "linux-cp-punt-l3", 0, 1, NULL,
-                                  0);
+      if (hash_elts (lip_db_by_vif) == 1)
+	{
+	  vnet_feature_enable_disable ("ip4-punt", "linux-cp-punt-l3", 0, 1,
+				       NULL, 0);
+	  vnet_feature_enable_disable ("ip6-punt", "linux-cp-punt-l3", 0, 1,
+				       NULL, 0);
+	}
     }
 
   /* invoke registered callbacks for pair addition */
@@ -434,10 +437,13 @@ lcp_itf_pair_del (u32 phy_sw_if_index)
     }
   else
     {
-      vnet_feature_enable_disable("ip4-punt", "linux-cp-punt-l3", 0, 0, NULL,
-                                  0);
-      vnet_feature_enable_disable("ip6-punt", "linux-cp-punt-l3", 0, 0, NULL,
-                                  0);
+      if (hash_elts (lip_db_by_vif) == 1)
+	{
+	  vnet_feature_enable_disable ("ip4-punt", "linux-cp-punt-l3", 0, 0,
+				       NULL, 0);
+	  vnet_feature_enable_disable ("ip6-punt", "linux-cp-punt-l3", 0, 0,
+				       NULL, 0);
+	}
     }
 
   lip_db_by_phy[phy_sw_if_index] = INDEX_INVALID;
