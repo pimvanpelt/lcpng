@@ -967,6 +967,12 @@ lcp_nl_neigh_add (struct rtnl_neigh *rn)
       return;
     }
 
+  if (ip46_address_is_multicast (&ip_addr_46 (&nh)))
+    {
+      NL_DBG ("neigh_add: ignore multicast %U", format_nl_object, rn);
+      return;
+    }
+
   lcp_nl_mk_ip_addr (rtnl_neigh_get_dst (rn), &nh);
   ll = rtnl_neigh_get_lladdr (rn);
   state = rtnl_neigh_get_state (rn);
@@ -1014,6 +1020,12 @@ lcp_nl_neigh_del (struct rtnl_neigh *rn)
 	  lcp_itf_pair_find_by_vif (rtnl_neigh_get_ifindex (rn)))))
     {
       NL_WARN ("neigh_del: no LCP for %U ", format_nl_object, rn);
+      return;
+    }
+
+  if (ip46_address_is_multicast (&ip_addr_46 (&nh)))
+    {
+      NL_DBG ("neigh_del: ignore multicast %U", format_nl_object, rn);
       return;
     }
 
