@@ -382,10 +382,6 @@ lcp_nl_callback (struct nl_msg *msg, void *arg)
   msg_info->msg = msg;
   nlmsg_get (msg);
 
-  /* notify process node */
-  vlib_process_signal_event (vlib_get_main (), lcp_nl_process_node.index,
-			     NL_EVENT_READ, 0);
-
   return 0;
 }
 
@@ -466,6 +462,13 @@ lcp_nl_read_cb (clib_file_t *f)
       vlib_process_signal_event (vlib_get_main (), lcp_nl_process_node.index,
 				 NL_EVENT_READ_ERR, 0);
     }
+  else
+    {
+      /* notify process node */
+      vlib_process_signal_event (vlib_get_main (), lcp_nl_process_node.index,
+				 NL_EVENT_READ, 0);
+    }
+
   return 0;
 }
 
