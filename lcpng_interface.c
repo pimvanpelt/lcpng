@@ -753,6 +753,9 @@ lcp_itf_pair_find_by_outer_vlan (u32 sup_if_index, u16 vlan, bool dot1ad)
   return lip_db_by_phy[match.matched_sw_if_index];
 }
 
+static clib_error_t *lcp_itf_pair_link_up_down (vnet_main_t *vnm,
+						u32 hw_if_index, u32 flags);
+
 int
 lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
 		     lip_host_type_t host_if_type, u8 *ns,
@@ -1050,6 +1053,16 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
     {
       lip = lcp_itf_pair_get (lcp_itf_pair_find_by_vif (vif_index));
       lcp_itf_pair_sync_state (lip);
+    }
+  /*
+   * Reflect current link state and link speed of the hardware interface
+   * on the TAP interface.
+   */
+  if (host_if_type == LCP_ITF_HOST_TAP &&
+      !vnet_sw_interface_is_sub (vnm, phy_sw_if_index))
+    {
+      hw = vnet_get_sup_hw_interface (vnm, phy_sw_if_index);
+      lcp_itf_pair_link_up_down (vnm, hw->hw_if_index, hw->flags);
     }
 
   if (host_sw_if_indexp)
