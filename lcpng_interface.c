@@ -960,6 +960,7 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
 	.host_namespace = 0,
       };
       ethernet_interface_t *ei;
+      u32 host_sw_mtu_size;
 
       if (host_if_type == LCP_ITF_HOST_TUN)
 	args.tap_flags |= TAP_FLAG_TUN;
@@ -967,26 +968,6 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
 	{
 	  ei = pool_elt_at_index (ethernet_main.interfaces, hw->hw_instance);
 	  mac_address_copy (&args.host_mac_addr, &ei->address.mac);
-	}
-
-      if (sw->mtu[VNET_MTU_L3])
-	{
-	  args.host_mtu_set = 1;
-	  args.host_mtu_size = sw->mtu[VNET_MTU_L3];
-	}
-
-      if (ns && ns[0] != 0)
-	{
-	  args.host_namespace = ns;
-	}
-
-      vm = vlib_get_main ();
-      tap_create_if (vm, &args);
-
-      if (args.rv < 0)
-	{
-          LCP_ITF_PAIR_ERR ("pair_create: could not create tap: retval:%d", args.rv);
-	  return args.rv;
 	}
 
       /*
@@ -997,17 +978,28 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
        * ensure that the tap MTU is large enough, taking the VPP interface L3
        * if it's set, and otherwise a sensible default.
        */
-      if (sw->mtu[VNET_MTU_L3])
-        vnet_sw_interface_set_mtu (vnm, args.sw_if_index, sw->mtu[VNET_MTU_L3]);
+      host_sw_mtu_size = sw->mtu[VNET_MTU_L3];
+      if (host_sw_mtu_size)
+	{
+	  args.host_mtu_set = 1;
+	  args.host_mtu_size = host_sw_mtu_size;
+	}
       else
-        vnet_sw_interface_set_mtu (vnm, args.sw_if_index, ETHERNET_MAX_PACKET_BYTES);
+	host_sw_mtu_size = ETHERNET_MAX_PACKET_BYTES;
 
-      /* TODO(pim) - figure out why we cannot initalize the carrier. Ideally, once
-       * the first TAP is created, we copy forward the link-carrier from the hardware.
-       * However, this provokes a crash on interfaces which are carrier down.
-       *
-       * tap_set_carrier (args.sw_if_index, (hw->flags & VNET_HW_INTERFACE_FLAG_LINK_UP));
-       */
+      if (ns && ns[0] != 0)
+	args.host_namespace = ns;
+
+      vm = vlib_get_main ();
+      tap_create_if (vm, &args);
+      if (args.rv < 0)
+	{
+	  LCP_ITF_PAIR_ERR ("pair_create: could not create tap, retval:%d",
+			    args.rv);
+	  return args.rv;
+	}
+
+      vnet_sw_interface_set_mtu (vnm, args.sw_if_index, host_sw_mtu_size);
 
       /*
        * get the hw and ethernet of the tap
