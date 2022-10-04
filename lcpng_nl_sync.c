@@ -958,6 +958,7 @@ lcp_nl_neigh_add (struct rtnl_neigh *rn)
   struct nl_addr *ll;
   ip_address_t nh;
   int state;
+  struct nl_addr *rna;
 
   NL_DBG ("neigh_add: netlink %U", format_nl_object, rn);
 
@@ -974,7 +975,12 @@ lcp_nl_neigh_add (struct rtnl_neigh *rn)
       return;
     }
 
-  lcp_nl_mk_ip_addr (rtnl_neigh_get_dst (rn), &nh);
+  if ((rna = rtnl_neigh_get_dst (rn)) == NULL)
+    {
+      NL_DBG ("neigh_del: ignore missing neighbor %U", format_nl_object, rn);
+      return;
+    }
+  lcp_nl_mk_ip_addr (rna, &nh);
   ll = rtnl_neigh_get_lladdr (rn);
   state = rtnl_neigh_get_state (rn);
 
@@ -1014,6 +1020,7 @@ lcp_nl_neigh_del (struct rtnl_neigh *rn)
 {
   ip_address_t nh;
   int rv;
+  struct nl_addr *rna;
   NL_DBG ("neigh_del: netlink %U", format_nl_object, rn);
 
   lcp_itf_pair_t *lip;
@@ -1030,7 +1037,12 @@ lcp_nl_neigh_del (struct rtnl_neigh *rn)
       return;
     }
 
-  lcp_nl_mk_ip_addr (rtnl_neigh_get_dst (rn), &nh);
+  if ((rna = rtnl_neigh_get_dst (rn)) == NULL)
+    {
+      NL_DBG ("neigh_del: ignore missing neighbor %U", format_nl_object, rn);
+      return;
+    }
+  lcp_nl_mk_ip_addr (rna, &nh);
   rv = ip_neighbor_del (&nh, lip->lip_phy_sw_if_index);
 
   if (rv == 0 || rv == VNET_API_ERROR_NO_SUCH_ENTRY)
