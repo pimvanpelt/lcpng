@@ -20,7 +20,7 @@ I work towards a completed plugin that can copy VPP configuration into Linux
 interfaces, and copy Linux configuration changes into VPP (ie. a fully
 bidirectional pipe between Linux and VPP).
 
-When the code is complete, this plugin should be able to work seemlessly with
+When the code is complete, this plugin should be able to work seamlessly with
 a higher level controlplane like [FRR](https://frrouting.org/) or
 [Bird](https://bird.network.cz/), for example as a BGP/OSPF speaking ISP router.
 
