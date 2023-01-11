@@ -23,19 +23,19 @@
 
 extern vlib_log_class_t lcp_itf_pair_logger;
 
-#define LCP_ITF_PAIR_DBG(...)                                                 \
+#define LCP_IF_DBG(...)                                                 \
   vlib_log_debug (lcp_itf_pair_logger, __VA_ARGS__);
 
-#define LCP_ITF_PAIR_INFO(...)                                                \
+#define LCP_IF_INFO(...)                                                \
   vlib_log_info (lcp_itf_pair_logger, __VA_ARGS__);
 
-#define LCP_ITF_PAIR_NOTICE(...)                                              \
+#define LCP_IF_NOTICE(...)                                              \
   vlib_log_notice (lcp_itf_pair_logger, __VA_ARGS__);
 
-#define LCP_ITF_PAIR_WARN(...)                                                \
+#define LCP_IF_WARN(...)                                                \
   vlib_log_warn (lcp_itf_pair_logger, __VA_ARGS__);
 
-#define LCP_ITF_PAIR_ERR(...)                                                \
+#define LCP_IF_ERROR(...)                                                \
   vlib_log_err (lcp_itf_pair_logger, __VA_ARGS__);
 
 

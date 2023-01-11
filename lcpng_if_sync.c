@@ -58,7 +58,7 @@ lcp_itf_pair_sync_state (lcp_itf_pair_t *lip)
 	clib_setns (vif_ns_fd);
     }
 
-  LCP_ITF_PAIR_INFO ("sync_state: %U flags %u sup-flags %u mtu %u sup-mtu %u",
+  LCP_IF_INFO ("sync_state: %U flags %u sup-flags %u mtu %u sup-mtu %u",
 		     format_lcp_itf_pair, lip, sw->flags, sup_sw->flags,
 		     sw->mtu[VNET_MTU_L3], sup_sw->mtu[VNET_MTU_L3]);
 
@@ -69,7 +69,7 @@ lcp_itf_pair_sync_state (lcp_itf_pair_t *lip)
 
   if (state && !(sup_sw->flags & VNET_SW_INTERFACE_FLAG_ADMIN_UP))
     {
-      LCP_ITF_PAIR_WARN (
+      LCP_IF_WARN (
 	"sync_state: %U flags %u sup-flags %u mtu %u sup-mtu %u: "
 	"forcing state to sup-flags to satisfy netlink",
 	format_lcp_itf_pair, lip, sw->flags, sup_sw->flags,
@@ -89,7 +89,7 @@ lcp_itf_pair_sync_state (lcp_itf_pair_t *lip)
 
   if (sup_sw->mtu[VNET_MTU_L3] < sw->mtu[VNET_MTU_L3])
     {
-      LCP_ITF_PAIR_WARN ("sync_state: %U flags %u mtu %u sup-mtu %u: "
+      LCP_IF_WARN ("sync_state: %U flags %u mtu %u sup-mtu %u: "
 			 "clamping to sup-mtu to satisfy netlink",
 			 format_lcp_itf_pair, lip, sw->flags,
 			 sw->mtu[VNET_MTU_L3], sup_sw->mtu[VNET_MTU_L3]);
@@ -163,7 +163,7 @@ lcp_itf_pair_sync_state_hw (vnet_hw_interface_t *hi)
 {
   if (!hi)
     return;
-  LCP_ITF_PAIR_DBG ("sync_state_hw: hi %U", format_vnet_sw_if_index_name,
+  LCP_IF_DBG ("sync_state_hw: hi %U", format_vnet_sw_if_index_name,
 		    vnet_get_main (), hi->hw_if_index);
 
   vnet_hw_interface_walk_sw (vnet_get_main (), hi->hw_if_index,
@@ -180,14 +180,14 @@ lcp_itf_admin_state_change (vnet_main_t * vnm, u32 sw_if_index, u32 flags)
   if (!lcp_sync ())
     return 0;
 
-  LCP_ITF_PAIR_DBG ("admin_state_change: sw %U %u",
+  LCP_IF_DBG ("admin_state_change: sw %U %u",
 		  format_vnet_sw_if_index_name, vnm, sw_if_index,
 		  flags);
 
   // Sync interface state changes into host
   lip = lcp_itf_pair_get (lcp_itf_pair_find_by_phy (sw_if_index));
   if (!lip) return NULL;
-  LCP_ITF_PAIR_INFO ("admin_state_change: %U flags %u", format_lcp_itf_pair, lip, flags);
+  LCP_IF_INFO ("admin_state_change: %U flags %u", format_lcp_itf_pair, lip, flags);
 
   if (vnet_sw_interface_is_sub (vnm, sw_if_index))
     {
@@ -207,7 +207,7 @@ lcp_itf_admin_state_change (vnet_main_t * vnm, u32 sw_if_index, u32 flags)
   hi = vnet_get_hw_interface_or_null (vnm, si->hw_if_index);
   if (!hi)
     return NULL;
-  LCP_ITF_PAIR_DBG ("admin_state_change: si %U hi %U, syncing children",
+  LCP_IF_DBG ("admin_state_change: si %U hi %U, syncing children",
 		    format_vnet_sw_if_index_name, vnm, si->sw_if_index,
 		    format_vnet_sw_if_index_name, vnm, hi->sw_if_index);
 
@@ -226,7 +226,7 @@ lcp_itf_mtu_change (vnet_main_t *vnm, u32 sw_if_index, u32 flags)
   if (!lcp_sync ())
     return NULL;
 
-  LCP_ITF_PAIR_DBG ("mtu_change: sw %U %u", format_vnet_sw_if_index_name, vnm,
+  LCP_IF_DBG ("mtu_change: sw %U %u", format_vnet_sw_if_index_name, vnm,
 		    sw_if_index, flags);
 
   if (vnet_sw_interface_is_sub (vnm, sw_if_index))
@@ -250,7 +250,7 @@ lcp_itf_mtu_change (vnet_main_t *vnm, u32 sw_if_index, u32 flags)
   hi = vnet_get_hw_interface_or_null (vnm, si->hw_if_index);
   if (!hi)
     return NULL;
-  LCP_ITF_PAIR_DBG ("mtu_change: si %U hi %U, syncing children",
+  LCP_IF_DBG ("mtu_change: si %U hi %U, syncing children",
 		    format_vnet_sw_if_index_name, vnm, si->sw_if_index,
 		    format_vnet_sw_if_index_name, vnm, hi->sw_if_index);
 
@@ -411,7 +411,7 @@ lcp_itf_ip4_add_del_interface_addr (ip4_main_t *im, uword opaque,
   if (!lcp_sync ())
     return;
 
-  LCP_ITF_PAIR_DBG ("ip4_addr_%s: si:%U %U/%u", is_del ? "del" : "add",
+  LCP_IF_DBG ("ip4_addr_%s: si:%U %U/%u", is_del ? "del" : "add",
 		    format_vnet_sw_if_index_name, vnet_get_main (),
 		    sw_if_index, format_ip4_address, address, address_length);
 
@@ -427,7 +427,7 @@ lcp_itf_ip4_add_del_interface_addr (ip4_main_t *im, uword opaque,
 	clib_setns (vif_ns_fd);
     }
 
-  LCP_ITF_PAIR_DBG ("ip4_addr_%s: %U ip4 %U/%u", is_del ? "del" : "add",
+  LCP_IF_DBG ("ip4_addr_%s: %U ip4 %U/%u", is_del ? "del" : "add",
 		    format_lcp_itf_pair, lip, format_ip4_address, address,
 		    address_length);
 
@@ -460,7 +460,7 @@ lcp_itf_ip6_add_del_interface_addr (ip6_main_t *im, uword opaque,
   if (!lcp_sync ())
     return;
 
-  LCP_ITF_PAIR_DBG ("ip6_addr_%s: si:%U %U/%u", is_del ? "del" : "add",
+  LCP_IF_DBG ("ip6_addr_%s: si:%U %U/%u", is_del ? "del" : "add",
 		    format_vnet_sw_if_index_name, vnet_get_main (),
 		    sw_if_index, format_ip6_address, address, address_length);
 
@@ -475,7 +475,7 @@ lcp_itf_ip6_add_del_interface_addr (ip6_main_t *im, uword opaque,
       if (vif_ns_fd != -1)
 	clib_setns (vif_ns_fd);
     }
-  LCP_ITF_PAIR_DBG ("ip6_addr_%s: %U ip4 %U/%u", is_del ? "del" : "add",
+  LCP_IF_DBG ("ip6_addr_%s: %U ip4 %U/%u", is_del ? "del" : "add",
 		    format_lcp_itf_pair, lip, format_ip6_address, address,
 		    address_length);
   if (is_del)
@@ -509,7 +509,7 @@ lcp_itf_interface_add_del (vnet_main_t *vnm, u32 sw_if_index, u32 is_create)
   if (!is_sub)
     return NULL;
 
-  LCP_ITF_PAIR_DBG ("interface_%s: sw %U parent %U", is_create ? "add" : "del",
+  LCP_IF_DBG ("interface_%s: sw %U parent %U", is_create ? "add" : "del",
 		    format_vnet_sw_if_index_name, vnet_get_main (),
 		    sw->sw_if_index, format_vnet_sw_if_index_name,
 		    vnet_get_main (), sw->sup_sw_if_index);
@@ -527,7 +527,7 @@ lcp_itf_interface_add_del (vnet_main_t *vnm, u32 sw_if_index, u32 is_create)
 
       name = format (name, "%s.%d", sup_lip->lip_host_name, sw->sub.id);
 
-      LCP_ITF_PAIR_INFO (
+      LCP_IF_INFO (
 	"interface_%s: %U has parent %U, auto-creating LCP with host-if %s",
 	is_create ? "add" : "del", format_vnet_sw_if_index_name,
 	vnet_get_main (), sw->sw_if_index, format_lcp_itf_pair, sup_lip, name);
