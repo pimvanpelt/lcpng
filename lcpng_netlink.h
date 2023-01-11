@@ -40,11 +40,12 @@ typedef enum nl_event_type_t_
 #define NL_BATCH_WORK_MS_DEF  40	/* 40 ms */
 #define NL_BATCH_DELAY_MS_DEF 10	/* 10 ms, max 20 batch/s */
 
-#define LCP_NL_DBG(...)    vlib_log_debug (lcp_nl_main.nl_logger, __VA_ARGS__);
-#define LCP_NL_INFO(...)   vlib_log_info (lcp_nl_main.nl_logger, __VA_ARGS__);
-#define LCP_NL_NOTICE(...) vlib_log_notice (lcp_nl_main.nl_logger, __VA_ARGS__);
-#define LCP_NL_WARN(...)   vlib_log_warn (lcp_nl_main.nl_logger, __VA_ARGS__);
-#define LCP_NL_ERROR(...)  vlib_log_err (lcp_nl_main.nl_logger, __VA_ARGS__);
+#define LCP_NL_DBG(...)	 vlib_log_debug (lcp_nl_main.nl_logger, __VA_ARGS__);
+#define LCP_NL_INFO(...) vlib_log_info (lcp_nl_main.nl_logger, __VA_ARGS__);
+#define LCP_NL_NOTICE(...)                                                    \
+  vlib_log_notice (lcp_nl_main.nl_logger, __VA_ARGS__);
+#define LCP_NL_WARN(...)  vlib_log_warn (lcp_nl_main.nl_logger, __VA_ARGS__);
+#define LCP_NL_ERROR(...) vlib_log_err (lcp_nl_main.nl_logger, __VA_ARGS__);
 
 /* struct type to hold context on the netlink message being processed.
  */

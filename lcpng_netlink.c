@@ -268,20 +268,20 @@ lcp_nl_process_msgs (void)
     {
       if ((err = nl_msg_parse (msg_info->msg, lcp_nl_dispatch, msg_info)) < 0)
 	LCP_NL_ERROR ("process_msgs: Unable to parse object: %s",
-		  nl_geterror (err));
+		      nl_geterror (err));
       nlmsg_free (msg_info->msg);
 
       if (++n_msgs >= nm->batch_size)
 	{
 	  LCP_NL_INFO ("process_msgs: batch_size %u reached, yielding",
-		   nm->batch_size);
+		       nm->batch_size);
 	  break;
 	}
       usecs = (u64) (1e6 * (vlib_time_now (vlib_get_main ()) - start));
       if (usecs >= 1e3 * nm->batch_work_ms)
 	{
 	  LCP_NL_INFO ("process_msgs: batch_work_ms %u reached, yielding",
-		   nm->batch_work_ms);
+		       nm->batch_work_ms);
 	  break;
 	}
     }
@@ -295,13 +295,13 @@ lcp_nl_process_msgs (void)
       if (vec_len (nm->nl_ns.nl_msg_queue))
 	{
 	  LCP_NL_WARN ("process_msgs: Processed %u messages in %llu usecs, %u "
-		   "left in queue",
-		   n_msgs, usecs, vec_len (nm->nl_ns.nl_msg_queue));
+		       "left in queue",
+		       n_msgs, usecs, vec_len (nm->nl_ns.nl_msg_queue));
 	}
       else
 	{
-	  LCP_NL_DBG ("process_msgs: Processed %u messages in %llu usecs", n_msgs,
-		  usecs);
+	  LCP_NL_DBG ("process_msgs: Processed %u messages in %llu usecs",
+		      n_msgs, usecs);
 	}
     }
 
@@ -400,14 +400,15 @@ lcp_nl_pair_add_cb (lcp_itf_pair_t *lip)
   // namespaces to listen on, adding/deleting listeners dynamically, ie every
   // time this callback is invoked.
   LCP_NL_DBG ("pair_add_cb: %U refcnt %u", format_lcp_itf_pair, lip,
-	  nm->nl_ns.clib_file_lcp_refcnt);
+	      nm->nl_ns.clib_file_lcp_refcnt);
 
   if ((nm->nl_ns.clib_file_lcp_refcnt > 0) &&
       vec_cmp(nm->nl_ns.netns_name, lip->lip_namespace))
     {
-      LCP_NL_WARN ("pair_add_cb: Existing netlink listener for netns %v -- this "
-	       "itf-pair is in netns %v, will not be listened!",
-	       nm->nl_ns.netns_name, lip->lip_namespace);
+      LCP_NL_WARN (
+	"pair_add_cb: Existing netlink listener for netns %v -- this "
+	"itf-pair is in netns %v, will not be listened!",
+	nm->nl_ns.netns_name, lip->lip_namespace);
       return;
     }
 
@@ -415,7 +416,7 @@ lcp_nl_pair_add_cb (lcp_itf_pair_t *lip)
   if (nm->nl_ns.clib_file_index == ~0)
     {
       LCP_NL_INFO ("pair_add_cb: Adding netlink listener for netns %v",
-	       lip->lip_namespace);
+		   lip->lip_namespace);
       lcp_nl_open_socket (lip->lip_namespace);
     }
 }
@@ -427,13 +428,13 @@ lcp_nl_pair_del_cb (lcp_itf_pair_t *lip)
 
   // See NOTE in lcp_nl_pair_add_cb().
   LCP_NL_DBG ("pair_del_cb: %U refcnt %u", format_lcp_itf_pair, lip,
-	  nm->nl_ns.clib_file_lcp_refcnt);
+	      nm->nl_ns.clib_file_lcp_refcnt);
 
   nm->nl_ns.clib_file_lcp_refcnt--;
   if (nm->nl_ns.clib_file_lcp_refcnt == 0)
     {
       LCP_NL_INFO ("pair_del_cb: Removing netlink listener for netns %v",
-	       lip->lip_namespace);
+		   lip->lip_namespace);
       lcp_nl_close_socket ();
       return;
     }
@@ -458,7 +459,7 @@ lcp_nl_read_cb (clib_file_t *f)
   if (err < 0 && err != -NLE_AGAIN)
     {
       LCP_NL_ERROR ("read_cb: Error reading netlink socket (fd %d): %s (%d)",
-		f->file_descriptor, nl_geterror (err), err);
+		    f->file_descriptor, nl_geterror (err), err);
       vlib_process_signal_event (vlib_get_main (), lcp_nl_process_node.index,
 				 NL_EVENT_READ_ERR, 0);
     }
@@ -476,7 +477,7 @@ static clib_error_t *
 lcp_nl_error_cb (clib_file_t *f)
 {
   LCP_NL_ERROR ("error_cb: Error polling netlink socket (fd %d)",
-	    f->file_descriptor);
+		f->file_descriptor);
 
   /* notify process node */
   vlib_process_signal_event (vlib_get_main (), lcp_nl_process_node.index,
@@ -500,7 +501,7 @@ lcp_nl_close_socket (void)
       if (f)
 	{
 	  LCP_NL_DBG ("close_socket: Stopping poll of netlink fd %u",
-		  f->file_descriptor);
+		      f->file_descriptor);
 	  fm->file_update (f, UNIX_FILE_UPDATE_DELETE);
 	}
       nm->nl_ns.clib_file_index = ~0;
@@ -510,7 +511,7 @@ lcp_nl_close_socket (void)
   if (nm->nl_ns.sk_route)
     {
       LCP_NL_DBG ("close_socket: Closing netlink socket %d",
-	      nl_socket_get_fd (nm->nl_ns.sk_route));
+		  nl_socket_get_fd (nm->nl_ns.sk_route));
       nl_socket_free (nm->nl_ns.sk_route);
       nm->nl_ns.sk_route = NULL;
     }
@@ -562,8 +563,9 @@ lcp_nl_open_socket (u8 *ns)
 				   nm->tx_buf_size);
   if (err != 0)
     {
-      LCP_NL_ERROR ("open_socket: Failed to set buffer size tx %u rx %u error %s",
-		nm->tx_buf_size, nm->rx_buf_size, nl_geterror (err));
+      LCP_NL_ERROR (
+	"open_socket: Failed to set buffer size tx %u rx %u error %s",
+	nm->tx_buf_size, nm->rx_buf_size, nl_geterror (err));
     }
 
   if (dest_ns_fd != -1)
@@ -587,7 +589,7 @@ lcp_nl_open_socket (u8 *ns)
 
       nm->nl_ns.clib_file_index = clib_file_add (&file_main, &rt_file);
       LCP_NL_DBG ("open_socket: Added netlink file idx %u fd %u netns %s",
-	      nm->nl_ns.clib_file_index, rt_file.file_descriptor, ns);
+		  nm->nl_ns.clib_file_index, rt_file.file_descriptor, ns);
     }
   else
     /* clib file already created and socket was closed due to error */
@@ -598,13 +600,13 @@ lcp_nl_open_socket (u8 *ns)
       f->file_descriptor = nl_socket_get_fd (nm->nl_ns.sk_route);
       fm->file_update (f, UNIX_FILE_UPDATE_ADD);
       LCP_NL_DBG ("open_socket: Updated netlink file idx %u fd %u netns %s",
-	      nm->nl_ns.clib_file_index, f->file_descriptor, ns);
+		  nm->nl_ns.clib_file_index, f->file_descriptor, ns);
     }
 
   nl_socket_modify_cb (nm->nl_ns.sk_route, NL_CB_VALID, NL_CB_CUSTOM,
 		       lcp_nl_callback, NULL);
   LCP_NL_NOTICE ("open_socket: Started poll of netlink fd %d netns %s",
-	     nl_socket_get_fd (nm->nl_ns.sk_route), nm->nl_ns.netns_name);
+		 nl_socket_get_fd (nm->nl_ns.sk_route), nm->nl_ns.netns_name);
 }
 
 #include <vnet/plugin/plugin.h>

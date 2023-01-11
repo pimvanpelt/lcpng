@@ -436,8 +436,8 @@ lcp_nl_route_del (struct rtnl_route *rr)
 
       entry_flags = lcp_nl_mk_route_entry_flags (rtype, table_id, rproto);
       LCP_NL_INFO ("route_del: table %d prefix %U flags %U",
-	       rtnl_route_get_table (rr), format_fib_prefix, &pfx,
-	       format_fib_entry_flags, entry_flags);
+		   rtnl_route_get_table (rr), format_fib_prefix, &pfx,
+		   format_fib_entry_flags, entry_flags);
       if (pfx.fp_proto == FIB_PROTOCOL_IP6)
 	fib_table_entry_delete (nlt->nlt_fib_index, &pfx, fib_src);
       else
@@ -480,8 +480,8 @@ lcp_nl_route_add (struct rtnl_route *rr)
 	ip6_address_is_link_local_unicast (&pfx.fp_addr.ip6))))
     {
       LCP_NL_DBG ("route_add: skip linklocal table %d prefix %U flags %U",
-	      rtnl_route_get_table (rr), format_fib_prefix, &pfx,
-	      format_fib_entry_flags, entry_flags);
+		  rtnl_route_get_table (rr), format_fib_prefix, &pfx,
+		  format_fib_entry_flags, entry_flags);
       return;
     }
   lcp_nl_route_path_parse_t np = {
@@ -505,8 +505,8 @@ lcp_nl_route_add (struct rtnl_route *rr)
 	  lcp_nl_mk_route_mprefix (rr, &mpfx);
 
 	  LCP_NL_INFO ("route_add: mcast table %d prefix %U flags %U",
-		   rtnl_route_get_table (rr), format_mfib_prefix, &mpfx,
-		   format_fib_entry_flags, entry_flags);
+		       rtnl_route_get_table (rr), format_mfib_prefix, &mpfx,
+		       format_fib_entry_flags, entry_flags);
 	  mfib_table_entry_update (nlt->nlt_mfib_index, &mpfx,
 				   MFIB_SOURCE_PLUGIN_LOW, MFIB_RPF_ID_NONE,
 				   MFIB_ENTRY_FLAG_ACCEPT_ALL_ITF);
@@ -531,8 +531,8 @@ lcp_nl_route_add (struct rtnl_route *rr)
 	  fib_src = lcp_nl_proto_fib_source (rproto);
 
 	  LCP_NL_INFO ("route_add: table %d prefix %U flags %U",
-		   rtnl_route_get_table (rr), format_fib_prefix, &pfx,
-		   format_fib_entry_flags, entry_flags);
+		       rtnl_route_get_table (rr), format_fib_prefix, &pfx,
+		       format_fib_entry_flags, entry_flags);
 
 	  if (pfx.fp_proto == FIB_PROTOCOL_IP6)
 	    fib_table_entry_path_add2 (nlt->nlt_fib_index, &pfx, fib_src,
@@ -544,8 +544,8 @@ lcp_nl_route_add (struct rtnl_route *rr)
     }
   else
     LCP_NL_WARN ("route_add: No paths table %d prefix %U flags %U netlink %U",
-	     rtnl_route_get_table (rr), format_fib_prefix, &pfx,
-	     format_fib_entry_flags, entry_flags, format_nl_object, rr);
+		 rtnl_route_get_table (rr), format_fib_prefix, &pfx,
+		 format_fib_entry_flags, entry_flags, format_nl_object, rr);
 
   vec_free (np.paths);
 }
@@ -579,15 +579,16 @@ lcp_nl_link_add_vlan (struct rtnl_link *rl)
    */
   if (!(parent_lip = lcp_itf_pair_get (lcp_itf_pair_find_by_vif (parent_idx))))
     {
-      LCP_NL_WARN ("link_add_vlan: No LIP for parent of %U", format_nl_object, rl);
+      LCP_NL_WARN ("link_add_vlan: No LIP for parent of %U", format_nl_object,
+		   rl);
       return NULL;
     }
 
   parent_sw = vnet_get_sw_interface (vnm, parent_lip->lip_phy_sw_if_index);
   if (!parent_sw)
     {
-      LCP_NL_ERROR ("link_add_vlan: Cannot get parent of %U", format_lcp_itf_pair,
-		parent_lip);
+      LCP_NL_ERROR ("link_add_vlan: Cannot get parent of %U",
+		    format_lcp_itf_pair, parent_lip);
       return NULL;
     }
 
@@ -604,7 +605,7 @@ lcp_nl_link_add_vlan (struct rtnl_link *rl)
       if (ntohs (proto) == ETH_P_8021AD)
 	{
 	  LCP_NL_ERROR ("link_add_vlan: Cannot create inner dot1ad: %U",
-		    format_nl_object, rl);
+			format_nl_object, rl);
 	  return NULL;
 	}
     }
@@ -635,7 +636,8 @@ lcp_nl_link_add_vlan (struct rtnl_link *rl)
 					     &subid))
     {
       LCP_NL_ERROR ("link_add_vlan: Cannot find available subid on phy %U",
-		format_vnet_sw_if_index_name, vnm, parent_sw->sup_sw_if_index);
+		    format_vnet_sw_if_index_name, vnm,
+		    parent_sw->sup_sw_if_index);
       lcpm->lcp_auto_subint = old_lcp_auto_subint;
       return NULL;
     }
@@ -648,10 +650,10 @@ lcp_nl_link_add_vlan (struct rtnl_link *rl)
 				 inner_vlan, outer_vlan, &phy_sw_if_index))
     {
       LCP_NL_ERROR ("link_add_vlan: Cannot create sub-int on phy %U flags %u "
-		"inner-dot1q %u dot1%s %u",
-		format_vnet_sw_if_index_name, vnm, parent_sw->sup_sw_if_index,
-		flags, inner_vlan,
-		parent_sw->sub.eth.flags.dot1ad ? "ad" : "q", outer_vlan);
+		    "inner-dot1q %u dot1%s %u",
+		    format_vnet_sw_if_index_name, vnm,
+		    parent_sw->sup_sw_if_index, flags, inner_vlan,
+		    parent_sw->sub.eth.flags.dot1ad ? "ad" : "q", outer_vlan);
       lcpm->lcp_auto_subint = old_lcp_auto_subint;
       return NULL;
     }
@@ -663,35 +665,36 @@ lcp_nl_link_add_vlan (struct rtnl_link *rl)
 	vnm, phy_lip->lip_host_sw_if_index, &subid))
     {
       LCP_NL_ERROR ("link_add_vlan: Cannot find available subid on host %U",
-		format_vnet_sw_if_index_name, vnm,
-		phy_lip->lip_host_sw_if_index);
+		    format_vnet_sw_if_index_name, vnm,
+		    phy_lip->lip_host_sw_if_index);
       lcpm->lcp_auto_subint = old_lcp_auto_subint;
       return NULL;
     }
-  LCP_NL_INFO ("link_add_vlan: creating subid %u outer %u inner %u flags %u on "
-	     "host %U phy %U",
-	     subid, outer_vlan, inner_vlan, flags,
-	     format_vnet_sw_if_index_name, vnm,
-	     parent_lip->lip_host_sw_if_index, format_vnet_sw_if_index_name,
-	     vnm, phy_lip->lip_host_sw_if_index);
+  LCP_NL_INFO (
+    "link_add_vlan: creating subid %u outer %u inner %u flags %u on "
+    "host %U phy %U",
+    subid, outer_vlan, inner_vlan, flags, format_vnet_sw_if_index_name, vnm,
+    parent_lip->lip_host_sw_if_index, format_vnet_sw_if_index_name, vnm,
+    phy_lip->lip_host_sw_if_index);
 
   if (vnet_create_sub_interface (phy_lip->lip_host_sw_if_index, subid, flags,
 				 inner_vlan, outer_vlan, &host_sw_if_index))
     {
       LCP_NL_ERROR ("link_add_vlan: Cannot create sub-int on host %U flags %u "
-		"inner-dot1q %u dot1%s %u",
-		format_vnet_sw_if_index_name, vnm,
-		phy_lip->lip_host_sw_if_index, flags, inner_vlan,
-		parent_sw->sub.eth.flags.dot1ad ? "ad" : "q", outer_vlan);
+		    "inner-dot1q %u dot1%s %u",
+		    format_vnet_sw_if_index_name, vnm,
+		    phy_lip->lip_host_sw_if_index, flags, inner_vlan,
+		    parent_sw->sub.eth.flags.dot1ad ? "ad" : "q", outer_vlan);
       lcpm->lcp_auto_subint = old_lcp_auto_subint;
       return NULL;
     }
   // Always keep sub-int on the TAP up
   vnet_sw_interface_admin_up (vnm, host_sw_if_index);
-  LCP_NL_NOTICE ("link_add_vlan: Creating LIP for host %U phy %U name %s idx %d",
-	     format_vnet_sw_if_index_name, vnm, host_sw_if_index,
-	     format_vnet_sw_if_index_name, vnm, phy_sw_if_index,
-	     rtnl_link_get_name (rl), idx);
+  LCP_NL_NOTICE (
+    "link_add_vlan: Creating LIP for host %U phy %U name %s idx %d",
+    format_vnet_sw_if_index_name, vnm, host_sw_if_index,
+    format_vnet_sw_if_index_name, vnm, phy_sw_if_index,
+    rtnl_link_get_name (rl), idx);
   lcpm->lcp_auto_subint = old_lcp_auto_subint;
 
   u8 *if_namev = 0;
@@ -726,8 +729,9 @@ lcp_nl_link_del (struct rtnl_link *rl)
 
   if (rtnl_link_is_vlan (rl))
     {
-      LCP_NL_NOTICE ("link_del: Removing subint %U", format_vnet_sw_if_index_name,
-		 vnet_get_main (), lip->lip_phy_sw_if_index);
+      LCP_NL_NOTICE ("link_del: Removing subint %U",
+		     format_vnet_sw_if_index_name, vnet_get_main (),
+		     lip->lip_phy_sw_if_index);
       vnet_delete_sub_interface (lip->lip_phy_sw_if_index);
       vnet_delete_sub_interface (lip->lip_host_sw_if_index);
     }
@@ -830,7 +834,7 @@ lcp_nl_link_add (struct rtnl_link *rl, void *ctx)
   lcp_nl_link_set_lladdr (rl, lip);
 
   LCP_NL_INFO ("link_add: %U admin %s", format_lcp_itf_pair, lip,
-	     admin_state ? "up" : "down");
+	       admin_state ? "up" : "down");
 
   return;
 }
@@ -907,13 +911,14 @@ lcp_nl_addr_add_del (struct rtnl_addr *ra, int is_del)
   lcp_itf_pair_t *lip;
   ip_address_t nh;
 
-  LCP_NL_DBG ("addr_%s: netlink %U", is_del ? "del" : "add", format_nl_object, ra);
+  LCP_NL_DBG ("addr_%s: netlink %U", is_del ? "del" : "add", format_nl_object,
+	      ra);
 
   if (!(lip = lcp_itf_pair_get (
 	  lcp_itf_pair_find_by_vif (rtnl_addr_get_ifindex (ra)))))
     {
       LCP_NL_WARN ("addr_%s: No LIP for %U ", is_del ? "del" : "add",
-	       format_nl_object, ra);
+		   format_nl_object, ra);
       return;
     }
 
@@ -944,10 +949,10 @@ lcp_nl_addr_add_del (struct rtnl_addr *ra, int is_del)
       lcp_nl_ip6_mroutes_add_del (lip->lip_phy_sw_if_index, !is_del);
     }
 
-  LCP_NL_NOTICE ("addr_%s %U/%d iface %U", is_del ? "del: Deleted" : "add: Added",
-	     format_ip_address, &nh, rtnl_addr_get_prefixlen (ra),
-	     format_vnet_sw_if_index_name, vnet_get_main (),
-	     lip->lip_phy_sw_if_index);
+  LCP_NL_NOTICE (
+    "addr_%s %U/%d iface %U", is_del ? "del: Deleted" : "add: Added",
+    format_ip_address, &nh, rtnl_addr_get_prefixlen (ra),
+    format_vnet_sw_if_index_name, vnet_get_main (), lip->lip_phy_sw_if_index);
 }
 
 void
@@ -988,7 +993,8 @@ lcp_nl_neigh_add (struct rtnl_neigh *rn)
 
   if ((rna = rtnl_neigh_get_dst (rn)) == NULL)
     {
-      LCP_NL_DBG ("neigh_del: ignore missing neighbor %U", format_nl_object, rn);
+      LCP_NL_DBG ("neigh_del: ignore missing neighbor %U", format_nl_object,
+		  rn);
       return;
     }
   lcp_nl_mk_ip_addr (rna, &nh);
@@ -1013,15 +1019,16 @@ lcp_nl_neigh_add (struct rtnl_neigh *rn)
       if (rv)
 	{
 	  LCP_NL_ERROR ("neigh_add: Failed %U lladdr %U iface %U",
-		    format_ip_address, &nh, format_mac_address, &mac,
-		    format_vnet_sw_if_index_name, vnet_get_main (),
-		    lip->lip_phy_sw_if_index);
+			format_ip_address, &nh, format_mac_address, &mac,
+			format_vnet_sw_if_index_name, vnet_get_main (),
+			lip->lip_phy_sw_if_index);
 	}
       else
 	{
-	  LCP_NL_INFO ("neigh_add: Added %U lladdr %U iface %U", format_ip_address,
-		   &nh, format_mac_address, &mac, format_vnet_sw_if_index_name,
-		   vnet_get_main (), lip->lip_phy_sw_if_index);
+	  LCP_NL_INFO ("neigh_add: Added %U lladdr %U iface %U",
+		       format_ip_address, &nh, format_mac_address, &mac,
+		       format_vnet_sw_if_index_name, vnet_get_main (),
+		       lip->lip_phy_sw_if_index);
 	}
     }
 }
@@ -1050,7 +1057,8 @@ lcp_nl_neigh_del (struct rtnl_neigh *rn)
 
   if ((rna = rtnl_neigh_get_dst (rn)) == NULL)
     {
-      LCP_NL_DBG ("neigh_del: ignore missing neighbor %U", format_nl_object, rn);
+      LCP_NL_DBG ("neigh_del: ignore missing neighbor %U", format_nl_object,
+		  rn);
       return;
     }
   lcp_nl_mk_ip_addr (rna, &nh);
@@ -1059,13 +1067,13 @@ lcp_nl_neigh_del (struct rtnl_neigh *rn)
   if (rv == 0 || rv == VNET_API_ERROR_NO_SUCH_ENTRY)
     {
       LCP_NL_INFO ("neigh_del: Deleted %U iface %U", format_ip_address, &nh,
-	       format_vnet_sw_if_index_name, vnet_get_main (),
-	       lip->lip_phy_sw_if_index);
+		   format_vnet_sw_if_index_name, vnet_get_main (),
+		   lip->lip_phy_sw_if_index);
     }
   else
     {
       LCP_NL_ERROR ("neigh_del: Failed %U iface %U", format_ip_address, &nh,
-		format_vnet_sw_if_index_name, vnet_get_main (),
-		lip->lip_phy_sw_if_index);
+		    format_vnet_sw_if_index_name, vnet_get_main (),
+		    lip->lip_phy_sw_if_index);
     }
 }
