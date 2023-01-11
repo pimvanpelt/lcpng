@@ -300,8 +300,8 @@ lcp_nl_process_msgs (void)
 	}
       else
 	{
-	  NL_INFO ("process_msgs: Processed %u messages in %llu usecs", n_msgs,
-		   usecs);
+	  NL_DBG ("process_msgs: Processed %u messages in %llu usecs", n_msgs,
+		  usecs);
 	}
     }
 
