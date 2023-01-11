@@ -414,8 +414,8 @@ lcp_nl_pair_add_cb (lcp_itf_pair_t *lip)
   nm->nl_ns.clib_file_lcp_refcnt++;
   if (nm->nl_ns.clib_file_index == ~0)
     {
-      NL_INFO ("pair_add_cb: Adding netlink listener for %U",
-	       format_lcp_itf_pair, lip);
+      NL_INFO ("pair_add_cb: Adding netlink listener for netns %v",
+	       lip->lip_namespace);
       lcp_nl_open_socket (lip->lip_namespace);
     }
 }
@@ -432,8 +432,8 @@ lcp_nl_pair_del_cb (lcp_itf_pair_t *lip)
   nm->nl_ns.clib_file_lcp_refcnt--;
   if (nm->nl_ns.clib_file_lcp_refcnt == 0)
     {
-      NL_INFO ("pair_del_cb: Removing netlink listener for %U",
-	       format_lcp_itf_pair, lip);
+      NL_INFO ("pair_del_cb: Removing netlink listener for netns %v",
+	       lip->lip_namespace);
       lcp_nl_close_socket ();
       return;
     }
