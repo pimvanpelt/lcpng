@@ -517,7 +517,18 @@ lcp_nl_route_add (struct rtnl_route *rr)
 	}
       else
 	{
-	  fib_source_t fib_src = lcp_nl_proto_fib_source (rproto);
+	  fib_source_t fib_src;
+	  const fib_route_path_t *rpath;
+
+	  vec_foreach (rpath, np.paths)
+	    {
+	      if (fib_route_path_is_attached (rpath))
+		{
+		  entry_flags |= FIB_ENTRY_FLAG_ATTACHED;
+		  break;
+		}
+	    }
+	  fib_src = lcp_nl_proto_fib_source (rproto);
 
 	  NL_INFO ("route_add: table %d prefix %U flags %U",
 		   rtnl_route_get_table (rr), format_fib_prefix, &pfx,
