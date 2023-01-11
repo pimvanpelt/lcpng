@@ -44,7 +44,7 @@ api_encode_host_type (lip_host_type_t type)
 static int
 vl_api_lcp_itf_pair_add (u32 phy_sw_if_index, lip_host_type_t lip_host_type,
 			 u8 *mp_host_if_name, size_t sizeof_host_if_name,
-			 u8 *mp_namespace, size_t sizeof_mp_namespace,
+			 u8 *mp_netns, size_t sizeof_mp_netns,
 			 u32 *host_sw_if_index_p)
 {
   u8 *host_if_name, *netns;
@@ -57,8 +57,8 @@ vl_api_lcp_itf_pair_add (u32 phy_sw_if_index, lip_host_type_t lip_host_type,
   vec_add (host_if_name, mp_host_if_name, host_len);
   vec_add1 (host_if_name, 0);
 
-  netns_len = clib_strnlen ((char *) mp_namespace, sizeof_mp_namespace - 1);
-  vec_add (netns, mp_namespace, netns_len);
+  netns_len = clib_strnlen ((char *) mp_netns, sizeof_mp_netns - 1);
+  vec_add (netns, mp_netns, netns_len);
   vec_add1 (netns, 0);
 
   rv = lcp_itf_pair_create (phy_sw_if_index, host_if_name, lip_host_type,
@@ -78,20 +78,15 @@ vl_api_lcp_itf_pair_add_del_t_handler (vl_api_lcp_itf_pair_add_del_t *mp)
   lip_host_type_t lip_host_type;
   int rv;
 
-  if (!vnet_sw_if_index_is_api_valid (mp->sw_if_index))
-    {
-      rv = VNET_API_ERROR_INVALID_SW_IF_INDEX;
-      goto bad_sw_if_index;
-    }
+  VALIDATE_SW_IF_INDEX_END (mp);
 
   phy_sw_if_index = mp->sw_if_index;
   lip_host_type = api_decode_host_type (mp->host_if_type);
   if (mp->is_add)
     {
-      rv =
-	vl_api_lcp_itf_pair_add (phy_sw_if_index, lip_host_type,
-				 mp->host_if_name, sizeof (mp->host_if_name),
-				 mp->namespace, sizeof (mp->namespace), NULL);
+      rv = vl_api_lcp_itf_pair_add (
+	phy_sw_if_index, lip_host_type, mp->host_if_name,
+	sizeof (mp->host_if_name), mp->netns, sizeof (mp->netns), NULL);
     }
   else
     {
@@ -99,7 +94,7 @@ vl_api_lcp_itf_pair_add_del_t_handler (vl_api_lcp_itf_pair_add_del_t *mp)
     }
 
   BAD_SW_IF_INDEX_LABEL;
-  REPLY_MACRO (VL_API_LCP_ITF_PAIR_ADD_DEL_REPLY);
+  REPLY_MACRO_END (VL_API_LCP_ITF_PAIR_ADD_DEL_REPLY);
 }
 
 static void
@@ -110,11 +105,7 @@ vl_api_lcp_itf_pair_add_del_v2_t_handler (vl_api_lcp_itf_pair_add_del_v2_t *mp)
   lip_host_type_t lip_host_type;
   int rv;
 
-  if (!vnet_sw_if_index_is_api_valid (mp->sw_if_index))
-    {
-      rv = VNET_API_ERROR_INVALID_SW_IF_INDEX;
-      goto bad_sw_if_index;
-    }
+  VALIDATE_SW_IF_INDEX_END (mp);
 
   phy_sw_if_index = mp->sw_if_index;
   lip_host_type = api_decode_host_type (mp->host_if_type);
@@ -122,8 +113,8 @@ vl_api_lcp_itf_pair_add_del_v2_t_handler (vl_api_lcp_itf_pair_add_del_v2_t *mp)
     {
       rv = vl_api_lcp_itf_pair_add (phy_sw_if_index, lip_host_type,
 				    mp->host_if_name,
-				    sizeof (mp->host_if_name), mp->namespace,
-				    sizeof (mp->namespace), &host_sw_if_index);
+				    sizeof (mp->host_if_name), mp->netns,
+				    sizeof (mp->netns), &host_sw_if_index);
     }
   else
     {
@@ -131,8 +122,8 @@ vl_api_lcp_itf_pair_add_del_v2_t_handler (vl_api_lcp_itf_pair_add_del_v2_t *mp)
     }
 
   BAD_SW_IF_INDEX_LABEL;
-  REPLY_MACRO2 (VL_API_LCP_ITF_PAIR_ADD_DEL_V2_REPLY,
-		{ rmp->host_sw_if_index = ntohl (host_sw_if_index); });
+  REPLY_MACRO2_END (VL_API_LCP_ITF_PAIR_ADD_DEL_V2_REPLY,
+		    { rmp->host_sw_if_index = ntohl (host_sw_if_index); });
 }
 
 static void
@@ -153,9 +144,9 @@ send_lcp_itf_pair_details (index_t lipi, vl_api_registration_t *rp,
 		lcp_pair->lip_host_name, vec_len (lcp_pair->lip_host_name));
       rmp->host_if_name[vec_len (lcp_pair->lip_host_name)] = 0;
 
-      memcpy_s (rmp->namespace, sizeof (rmp->namespace),
-		lcp_pair->lip_namespace, vec_len (lcp_pair->lip_namespace));
-      rmp->namespace[vec_len (lcp_pair->lip_namespace)] = 0;
+      memcpy_s (rmp->netns, sizeof (rmp->netns), lcp_pair->lip_namespace,
+		vec_len (lcp_pair->lip_namespace));
+      rmp->netns[vec_len (lcp_pair->lip_namespace)] = 0;
     }));
 }
 
@@ -175,15 +166,14 @@ vl_api_lcp_default_ns_set_t_handler(vl_api_lcp_default_ns_set_t *mp) {
   vl_api_lcp_default_ns_set_reply_t *rmp;
   int rv;
 
-  mp->namespace[LCP_NS_LEN - 1] = 0;
-  rv = lcp_set_default_ns(mp->namespace);
+  mp->netns[LCP_NS_LEN - 1] = 0;
+  rv = lcp_set_default_ns (mp->netns);
 
   REPLY_MACRO(VL_API_LCP_DEFAULT_NS_SET_REPLY);
 }
 
 static void
 vl_api_lcp_default_ns_get_t_handler(vl_api_lcp_default_ns_get_t *mp) {
-  lcp_main_t *lcpm = &lcp_main;
   vl_api_lcp_default_ns_get_reply_t *rmp;
   vl_api_registration_t *reg;
   char *ns;
@@ -192,16 +182,12 @@ vl_api_lcp_default_ns_get_t_handler(vl_api_lcp_default_ns_get_t *mp) {
   if (!reg)
     return;
 
-  rmp = vl_msg_api_alloc (sizeof (*rmp));
-  clib_memset (rmp, 0, sizeof (*rmp));
-  rmp->_vl_msg_id = (VL_API_LCP_DEFAULT_NS_GET_REPLY + lcpm->msg_id_base);
-  rmp->context = mp->context;
-
-  ns = (char *)lcp_get_default_ns();
-  if (ns)
-    clib_strncpy ((char *) rmp->namespace, ns, LCP_NS_LEN - 1);
-
-  vl_api_send_msg (reg, (u8 *) rmp);
+  REPLY_MACRO_DETAILS2_END (VL_API_LCP_DEFAULT_NS_GET_REPLY, ({
+			      ns = (char *) lcp_get_default_ns ();
+			      if (ns)
+				clib_strncpy ((char *) rmp->netns, ns,
+					      LCP_NS_LEN - 1);
+			    }));
 }
 
 static void
