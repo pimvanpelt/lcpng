@@ -435,9 +435,9 @@ lcp_nl_route_del (struct rtnl_route *rr)
       fib_entry_flag_t entry_flags;
 
       entry_flags = lcp_nl_mk_route_entry_flags (rtype, table_id, rproto);
-      LCP_NL_INFO ("route_del: table %d prefix %U flags %U",
-		   rtnl_route_get_table (rr), format_fib_prefix, &pfx,
-		   format_fib_entry_flags, entry_flags);
+      LCP_NL_DBG ("route_del: table %d prefix %U flags %U",
+		  rtnl_route_get_table (rr), format_fib_prefix, &pfx,
+		  format_fib_entry_flags, entry_flags);
       if (pfx.fp_proto == FIB_PROTOCOL_IP6)
 	fib_table_entry_delete (nlt->nlt_fib_index, &pfx, fib_src);
       else
@@ -504,9 +504,9 @@ lcp_nl_route_add (struct rtnl_route *rr)
 
 	  lcp_nl_mk_route_mprefix (rr, &mpfx);
 
-	  LCP_NL_INFO ("route_add: mcast table %d prefix %U flags %U",
-		       rtnl_route_get_table (rr), format_mfib_prefix, &mpfx,
-		       format_fib_entry_flags, entry_flags);
+	  LCP_NL_DBG ("route_add: mcast table %d prefix %U flags %U",
+		      rtnl_route_get_table (rr), format_mfib_prefix, &mpfx,
+		      format_fib_entry_flags, entry_flags);
 	  mfib_table_entry_update (nlt->nlt_mfib_index, &mpfx,
 				   MFIB_SOURCE_PLUGIN_LOW, MFIB_RPF_ID_NONE,
 				   MFIB_ENTRY_FLAG_ACCEPT_ALL_ITF);
@@ -530,9 +530,9 @@ lcp_nl_route_add (struct rtnl_route *rr)
 	    }
 	  fib_src = lcp_nl_proto_fib_source (rproto);
 
-	  LCP_NL_INFO ("route_add: table %d prefix %U flags %U",
-		       rtnl_route_get_table (rr), format_fib_prefix, &pfx,
-		       format_fib_entry_flags, entry_flags);
+	  LCP_NL_DBG ("route_add: table %d prefix %U flags %U",
+		      rtnl_route_get_table (rr), format_fib_prefix, &pfx,
+		      format_fib_entry_flags, entry_flags);
 
 	  if (pfx.fp_proto == FIB_PROTOCOL_IP6)
 	    fib_table_entry_path_add2 (nlt->nlt_fib_index, &pfx, fib_src,
