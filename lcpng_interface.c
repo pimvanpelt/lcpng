@@ -21,6 +21,7 @@
 
 #include <lcpng/lcpng_interface.h>
 #include <netlink/route/link/vlan.h>
+#include <netlink/route/link/vrf.h>
 #include <linux/if_ether.h>
 
 #include <vnet/plugin/plugin.h>
@@ -45,6 +46,10 @@ vlib_log_class_t lcp_itf_pair_logger;
  * Pool of LIP objects
  */
 lcp_itf_pair_t *lcp_itf_pair_pool = NULL;
+
+lcp_nl_table_t *lcp_nl_table_pool = NULL;
+
+uword *lcp_nl_table_db[FIB_PROTOCOL_MAX] = { NULL };
 
 u32
 lcp_itf_num_pairs (void)
@@ -368,7 +373,7 @@ lcp_netlink_add_link_vlan (int parent, u32 vlan, u16 proto, const char *name)
   return NULL;
 }
 
-static clib_error_t *
+clib_error_t *
 lcp_netlink_del_link (const char *name)
 {
   struct rtnl_link *link;
@@ -1199,6 +1204,66 @@ lcp_itf_pair_init (vlib_main_t *vm)
 
   return NULL;
 }
+
+lcp_nl_table_t *
+lcp_nl_table_find (uint32_t id, fib_protocol_t fproto)
+{
+  uword *p;
+
+  p = hash_get (lcp_nl_table_db[fproto], id);
+
+  if (p)
+    return pool_elt_at_index (lcp_nl_table_pool, p[0]);
+
+  return (NULL);
+}
+
+#ifdef LCP_HAVE_VRF_SYNC
+lcp_nl_table_t *
+lcp_nl_table_find_by_if_index (u32 if_index)
+{
+  lcp_nl_table_t *nlt;
+
+  pool_foreach (nlt, lcp_nl_table_pool)
+    {
+      if (nlt->nlt_proto == FIB_PROTOCOL_IP4 && nlt->nlt_if_index == if_index)
+        return nlt;
+    }
+  return NULL;
+}
+
+clib_error_t *
+lcp_netlink_add_link_vrf (u32 table_id, const char *name)
+{
+  struct rtnl_link *link;
+  struct nl_sock *sk;
+  int err;
+
+  sk = nl_socket_alloc ();
+  if ((err = nl_connect (sk, NETLINK_ROUTE)) < 0) {
+      LCP_IF_ERROR ("netlink_add_link_vrf: Netlink connect error: %s",
+		    nl_geterror (err));
+      return clib_error_return (NULL, "Unable to connect socket: %d", err);
+  }
+
+  link = rtnl_link_vrf_alloc ();
+
+  rtnl_link_set_link (link, 0);
+  rtnl_link_set_name (link, name);
+  rtnl_link_vrf_set_tableid (link, table_id);
+
+  if ((err = rtnl_link_add (sk, link, NLM_F_CREATE)) < 0) {
+      LCP_IF_ERROR ("netlink_add_link_vrf: Netlink link add error: %s",
+		    nl_geterror (err));
+      return clib_error_return (NULL, "Unable to add link %s: %d", name, err);
+  }
+
+  rtnl_link_put (link);
+  nl_close (sk);
+
+  return NULL;
+}
+#endif // LCP_HAVE_VRF_SYNC
 
 VLIB_INIT_FUNCTION (lcp_itf_pair_init) = {
   .runs_after = VLIB_INITS ("vnet_interface_init", "tcp_init", "udp_init"),

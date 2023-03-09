@@ -73,6 +73,19 @@ typedef struct lcp_itf_pair_t_
 } lcp_itf_pair_t;
 extern lcp_itf_pair_t *lcp_itf_pair_pool;
 
+typedef struct lcp_nl_table_t_
+{
+  uint32_t nlt_id;
+  fib_protocol_t nlt_proto;
+  u32 nlt_fib_index;
+  u32 nlt_mfib_index;
+  u32 nlt_refs;
+  u32 nlt_if_index;
+} lcp_nl_table_t;
+extern lcp_nl_table_t *lcp_nl_table_pool;
+
+extern uword *lcp_nl_table_db[FIB_PROTOCOL_MAX];
+
 extern vlib_node_registration_t lcp_ethernet_node;
 
 u8 *format_lcp_itf_pair (u8 *s, va_list *args);
@@ -166,6 +179,8 @@ int lcp_auto_subint (void);
 void lcp_set_sync (u8 is_auto);
 int lcp_sync (void);
 
+clib_error_t *lcp_netlink_del_link (const char *name);
+
 typedef void (*lcp_itf_pair_add_cb_t) (lcp_itf_pair_t *);
 typedef void (*lcp_itf_pair_del_cb_t) (lcp_itf_pair_t *);
 
@@ -193,6 +208,13 @@ void lcp_itf_set_interface_addr (const lcp_itf_pair_t *lip);
 void lcp_itf_pair_sync_state (lcp_itf_pair_t *lip);
 void lcp_itf_pair_sync_state_hw (vnet_hw_interface_t *hi);
 void lcp_itf_pair_sync_state_all ();
+
+lcp_nl_table_t *lcp_nl_table_find (uint32_t id, fib_protocol_t fproto);
+
+#ifdef LCP_HAVE_VRF_SYNC
+lcp_nl_table_t *lcp_nl_table_find_by_if_index (u32 if_index);
+clib_error_t *lcp_netlink_add_link_vrf (u32 table_id, const char *name);
+#endif // LCP_HAVE_VRF_SYNC
 
 /*
  * fd.io coding-style-patch-verification: ON
