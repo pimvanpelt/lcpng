@@ -118,7 +118,7 @@ void lcp_nl_addr_add (struct rtnl_addr *ra);
 void lcp_nl_addr_del (struct rtnl_addr *ra);
 void lcp_nl_link_add (struct rtnl_link *rl, void *ctx);
 void lcp_nl_link_del (struct rtnl_link *rl);
-void lcp_nl_route_add (struct rtnl_route *rr);
+void lcp_nl_route_add (struct rtnl_route *rr, int is_replace);
 void lcp_nl_route_del (struct rtnl_route *rr);
 
 /*

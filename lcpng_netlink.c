@@ -225,8 +225,13 @@ lcp_nl_dispatch (struct nl_object *obj, void *arg)
       lcp_nl_link_del ((struct rtnl_link *) obj);
       break;
     case RTM_NEWROUTE:
-      lcp_nl_route_add ((struct rtnl_route *) obj);
-      break;
+      {
+	nl_msg_info_t *msg_info = (nl_msg_info_t *) arg;
+	struct nlmsghdr *nlh = nlmsg_hdr (msg_info->msg);
+	lcp_nl_route_add ((struct rtnl_route *) obj,
+			  (nlh->nlmsg_flags & NLM_F_REPLACE));
+	break;
+      }
     case RTM_DELROUTE:
       lcp_nl_route_del ((struct rtnl_route *) obj);
       break;

@@ -451,7 +451,7 @@ lcp_nl_route_del (struct rtnl_route *rr)
 }
 
 void
-lcp_nl_route_add (struct rtnl_route *rr)
+lcp_nl_route_add (struct rtnl_route *rr, int is_replace)
 {
   fib_entry_flag_t entry_flags;
   uint32_t table_id;
@@ -459,7 +459,8 @@ lcp_nl_route_add (struct rtnl_route *rr)
   lcp_nl_table_t *nlt;
   uint8_t rtype, rproto;
 
-  LCP_NL_DBG ("route_add: netlink %U", format_nl_object, rr);
+  LCP_NL_DBG ("route_add: netlink %U %s", format_nl_object, rr,
+	      is_replace?"replace":"");
 
   rtype = rtnl_route_get_type (rr);
   table_id = rtnl_route_get_table (rr);
@@ -534,12 +535,12 @@ lcp_nl_route_add (struct rtnl_route *rr)
 		      rtnl_route_get_table (rr), format_fib_prefix, &pfx,
 		      format_fib_entry_flags, entry_flags);
 
-	  if (pfx.fp_proto == FIB_PROTOCOL_IP6)
-	    fib_table_entry_path_add2 (nlt->nlt_fib_index, &pfx, fib_src,
-				       entry_flags, np.paths);
-	  else
+	  if (is_replace)
 	    fib_table_entry_update (nlt->nlt_fib_index, &pfx, fib_src,
 				    entry_flags, np.paths);
+	  else
+	    fib_table_entry_path_add2 (nlt->nlt_fib_index, &pfx, fib_src,
+				       entry_flags, np.paths);
 	}
     }
   else
