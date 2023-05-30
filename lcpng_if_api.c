@@ -162,18 +162,20 @@ vl_api_lcp_itf_pair_get_t_handler (vl_api_lcp_itf_pair_get_t *mp)
 }
 
 static void
-vl_api_lcp_default_ns_set_t_handler(vl_api_lcp_default_ns_set_t *mp) {
+vl_api_lcp_default_ns_set_t_handler (vl_api_lcp_default_ns_set_t *mp)
+{
   vl_api_lcp_default_ns_set_reply_t *rmp;
   int rv;
 
   mp->netns[LCP_NS_LEN - 1] = 0;
   rv = lcp_set_default_ns (mp->netns);
 
-  REPLY_MACRO(VL_API_LCP_DEFAULT_NS_SET_REPLY);
+  REPLY_MACRO (VL_API_LCP_DEFAULT_NS_SET_REPLY);
 }
 
 static void
-vl_api_lcp_default_ns_get_t_handler(vl_api_lcp_default_ns_get_t *mp) {
+vl_api_lcp_default_ns_get_t_handler (vl_api_lcp_default_ns_get_t *mp)
+{
   vl_api_lcp_default_ns_get_reply_t *rmp;
   vl_api_registration_t *reg;
   char *ns;

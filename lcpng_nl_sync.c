@@ -461,7 +461,7 @@ lcp_nl_route_add (struct rtnl_route *rr, int is_replace)
   uint8_t rtype, rproto;
 
   LCP_NL_DBG ("route_add: netlink %U %s", format_nl_object, rr,
-	      is_replace?"replace":"");
+	      is_replace ? "replace" : "");
 
   rtype = rtnl_route_get_type (rr);
   table_id = rtnl_route_get_table (rr);

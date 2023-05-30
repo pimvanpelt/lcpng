@@ -23,7 +23,9 @@
 
 lcp_main_t lcp_main;
 
-u8 *lcp_get_default_ns(void) {
+u8 *
+lcp_get_default_ns (void)
+{
   lcp_main_t *lcpm = &lcp_main;
 
   if (!lcpm->default_namespace || lcpm->default_namespace[0] == 0)
@@ -31,7 +33,9 @@ u8 *lcp_get_default_ns(void) {
   return lcpm->default_namespace;
 }
 
-int lcp_get_default_ns_fd(void) {
+int
+lcp_get_default_ns_fd (void)
+{
   lcp_main_t *lcpm = &lcp_main;
 
   return lcpm->default_ns_fd;
@@ -40,7 +44,9 @@ int lcp_get_default_ns_fd(void) {
 /*
  * ns is expected to be or look like a NUL-terminated C string.
  */
-int lcp_set_default_ns(u8 *ns) {
+int
+lcp_set_default_ns (u8 *ns)
+{
   lcp_main_t *lcpm = &lcp_main;
   char *p;
   int len;

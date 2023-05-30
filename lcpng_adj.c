@@ -185,17 +185,17 @@ lcp_adj_show_cmd (vlib_main_t *vm, unformat_input_t *input,
   if (unformat (input, "verbose"))
     verbose = 1;
 
-  vlib_cli_output(vm, "lcp Adjs:\n%U", BV(format_bihash), &lcp_adj_tbl,
-                  verbose);
+  vlib_cli_output (vm, "lcp Adjs:\n%U", BV (format_bihash), &lcp_adj_tbl,
+		   verbose);
 
   return 0;
 }
 
-VLIB_CLI_COMMAND(lcp_itf_pair_show_cmd_node, static) = {
-    .path = "show lcp adj",
-    .function = lcp_adj_show_cmd,
-    .short_help = "show lcp adj",
-    .is_mp_safe = 1,
+VLIB_CLI_COMMAND (lcp_itf_pair_show_cmd_node, static) = {
+  .path = "show lcp adj",
+  .function = lcp_adj_show_cmd,
+  .short_help = "show lcp adj",
+  .is_mp_safe = 1,
 };
 
 const adj_delegate_vft_t lcp_adj_vft = {
@@ -210,7 +210,7 @@ lcp_adj_init (vlib_main_t *vm)
 {
   adj_type = adj_delegate_register_new_type (&lcp_adj_vft);
 
-  BV(clib_bihash_init)(&lcp_adj_tbl, "lcp ADJ table", 1024, 1 << 24);
+  BV (clib_bihash_init) (&lcp_adj_tbl, "lcp ADJ table", 1024, 1 << 24);
   BV (clib_bihash_set_kvp_format_fn) (&lcp_adj_tbl, format_lcp_adj_kvp);
 
   return (NULL);

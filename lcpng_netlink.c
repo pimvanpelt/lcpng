@@ -408,7 +408,7 @@ lcp_nl_pair_add_cb (lcp_itf_pair_t *lip)
 	      nm->nl_ns.clib_file_lcp_refcnt);
 
   if ((nm->nl_ns.clib_file_lcp_refcnt > 0) &&
-      vec_cmp(nm->nl_ns.netns_name, lip->lip_namespace))
+      vec_cmp (nm->nl_ns.netns_name, lip->lip_namespace))
     {
       LCP_NL_WARN (
 	"pair_add_cb: Existing netlink listener for netns %v -- this "

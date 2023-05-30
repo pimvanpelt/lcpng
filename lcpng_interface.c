@@ -128,7 +128,7 @@ lcp_itf_pair_show (u32 phy_sw_if_index)
   index_t api;
 
   vm = vlib_get_main ();
-  ns = lcp_get_default_ns();
+  ns = lcp_get_default_ns ();
   vlib_cli_output (vm, "lcp default netns %v\n", ns);
   vlib_cli_output (vm, "lcp lcp-auto-subint %s\n",
 		   lcp_auto_subint () ? "on" : "off");
@@ -149,8 +149,10 @@ lcp_itf_pair_show (u32 phy_sw_if_index)
 lcp_itf_pair_t *
 lcp_itf_pair_get (u32 index)
 {
-  if (!lcp_itf_pair_pool) return NULL;
-  if (index == INDEX_INVALID) return NULL;
+  if (!lcp_itf_pair_pool)
+    return NULL;
+  if (index == INDEX_INVALID)
+    return NULL;
 
   return pool_elt_at_index (lcp_itf_pair_pool, index);
 }
@@ -230,15 +232,17 @@ lcp_itf_pair_add (u32 host_sw_if_index, u32 phy_sw_if_index, u8 *host_name,
   if (lipi != INDEX_INVALID)
     return VNET_API_ERROR_VALUE_EXIST;
 
-  if (host_sw_if_index == ~0) {
+  if (host_sw_if_index == ~0)
+    {
       LCP_IF_ERROR ("pair_add: Cannot add LIP - invalid host");
       return VNET_API_ERROR_INVALID_SW_IF_INDEX;
-  }
+    }
 
-  if (phy_sw_if_index == ~0) {
+  if (phy_sw_if_index == ~0)
+    {
       LCP_IF_ERROR ("pair_add: Cannot add LIP - invalid phy");
       return VNET_API_ERROR_INVALID_SW_IF_INDEX;
-  }
+    }
 
   LCP_IF_NOTICE (
     "pair_add: Adding LIP for host:%U phy:%U host_if:%v vif:%d netns:%v",
@@ -304,10 +308,10 @@ lcp_itf_pair_add (u32 host_sw_if_index, u32 phy_sw_if_index, u8 *host_name,
   /* enable ARP feature node for broadcast interfaces */
   if (lip->lip_host_type != LCP_ITF_HOST_TUN)
     {
-    vnet_feature_enable_disable("arp", "linux-cp-arp-phy",
-                                lip->lip_phy_sw_if_index, 1, NULL, 0);
-    vnet_feature_enable_disable("arp", "linux-cp-arp-host",
-                                lip->lip_host_sw_if_index, 1, NULL, 0);
+      vnet_feature_enable_disable ("arp", "linux-cp-arp-phy",
+				   lip->lip_phy_sw_if_index, 1, NULL, 0);
+      vnet_feature_enable_disable ("arp", "linux-cp-arp-host",
+				   lip->lip_host_sw_if_index, 1, NULL, 0);
     }
   else
     {
@@ -343,11 +347,12 @@ lcp_netlink_add_link_vlan (int parent, u32 vlan, u16 proto, const char *name)
   int err;
 
   sk = nl_socket_alloc ();
-  if ((err = nl_connect (sk, NETLINK_ROUTE)) < 0) {
+  if ((err = nl_connect (sk, NETLINK_ROUTE)) < 0)
+    {
       LCP_IF_ERROR ("netlink_add_link_vlan: Netlink connect error: %s",
 		    nl_geterror (err));
       return clib_error_return (NULL, "Unable to connect socket: %d", err);
-  }
+    }
 
   link = rtnl_link_vlan_alloc ();
 
@@ -356,11 +361,12 @@ lcp_netlink_add_link_vlan (int parent, u32 vlan, u16 proto, const char *name)
   rtnl_link_vlan_set_id (link, vlan);
   rtnl_link_vlan_set_protocol (link, htons (proto));
 
-  if ((err = rtnl_link_add (sk, link, NLM_F_CREATE)) < 0) {
+  if ((err = rtnl_link_add (sk, link, NLM_F_CREATE)) < 0)
+    {
       LCP_IF_ERROR ("netlink_add_link_vlan: Netlink link add error: %s",
 		    nl_geterror (err));
       return clib_error_return (NULL, "Unable to add link %s: %d", name, err);
-  }
+    }
 
   rtnl_link_put (link);
   nl_close (sk);
@@ -432,10 +438,10 @@ lcp_itf_pair_del (u32 phy_sw_if_index)
   /* disable ARP feature node for broadcast interfaces */
   if (lip->lip_host_type != LCP_ITF_HOST_TUN)
     {
-    vnet_feature_enable_disable("arp", "linux-cp-arp-phy",
-                                lip->lip_phy_sw_if_index, 0, NULL, 0);
-    vnet_feature_enable_disable("arp", "linux-cp-arp-host",
-                                lip->lip_host_sw_if_index, 0, NULL, 0);
+      vnet_feature_enable_disable ("arp", "linux-cp-arp-phy",
+				   lip->lip_phy_sw_if_index, 0, NULL, 0);
+      vnet_feature_enable_disable ("arp", "linux-cp-arp-host",
+				   lip->lip_host_sw_if_index, 0, NULL, 0);
     }
   else
     {
@@ -611,7 +617,8 @@ lcp_itf_set_link_state (const lcp_itf_pair_t *lip, u8 state)
   vnet_main_t *vnm = vnet_get_main ();
   int curr_ns_fd, vif_ns_fd;
 
-  if (!lip) return;
+  if (!lip)
+    return;
 
   curr_ns_fd = vif_ns_fd = -1;
 
@@ -769,37 +776,41 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
   const vnet_hw_interface_t *hw;
   lcp_itf_pair_t *lip;
 
-  if (!vnet_sw_if_index_is_api_valid (phy_sw_if_index)) {
+  if (!vnet_sw_if_index_is_api_valid (phy_sw_if_index))
+    {
       LCP_IF_ERROR ("pair_create: Invalid phy index %u", phy_sw_if_index);
       return VNET_API_ERROR_INVALID_SW_IF_INDEX;
-  }
+    }
 
-  if (!lcp_validate_if_name (host_if_name)) {
+  if (!lcp_validate_if_name (host_if_name))
+    {
       LCP_IF_ERROR ("pair_create: Invalid host-if-name '%s'", host_if_name);
       return VNET_API_ERROR_INVALID_ARGUMENT;
-  }
+    }
 
   vnm = vnet_get_main ();
   sw = vnet_get_sw_interface (vnm, phy_sw_if_index);
   hw = vnet_get_sup_hw_interface (vnm, phy_sw_if_index);
-  if (!sw && !hw) {
+  if (!sw && !hw)
+    {
       LCP_IF_ERROR ("pair_create: Invalid interface");
       return VNET_API_ERROR_INVALID_SW_IF_INDEX;
-  }
+    }
 
   if (hw->hw_class_index != ethernet_hw_interface_class.index &&
-      host_if_type == LCP_ITF_HOST_TAP) {
+      host_if_type == LCP_ITF_HOST_TAP)
+    {
       LCP_IF_ERROR (
 	"pair_create: don't create TAP for non-eth interface; use tun");
       return VNET_API_ERROR_INVALID_ARGUMENT;
-  }
+    }
 
   /*
    * Use interface-specific netns if supplied.
    * Otherwise, use netns if defined, otherwise use the OS default.
    */
   if (ns == 0 || ns[0] == 0)
-    ns = lcp_get_default_ns();
+    ns = lcp_get_default_ns ();
 
   /* sub interfaces do not need a tap created */
   if (vnet_sw_interface_is_sub (vnm, phy_sw_if_index))
@@ -812,16 +823,19 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
       u16 vlan, proto;
       u32 parent_vif_index;
 
-      if (sw->type == VNET_SW_INTERFACE_TYPE_SUB && sw->sub.eth.flags.exact_match == 0) {
+      if (sw->type == VNET_SW_INTERFACE_TYPE_SUB &&
+	  sw->sub.eth.flags.exact_match == 0)
+	{
 	  LCP_IF_ERROR ("pair_create: Cannot create LIP for a "
 			"sub-interface without exact-match set");
 	  return VNET_API_ERROR_INVALID_ARGUMENT;
-      }
+	}
 
       outer_vlan = sw->sub.eth.outer_vlan_id;
       inner_vlan = sw->sub.eth.inner_vlan_id;
       outer_proto = inner_proto = ETH_P_8021Q;
-      if (1 == sw->sub.eth.flags.dot1ad) outer_proto = ETH_P_8021AD;
+      if (1 == sw->sub.eth.flags.dot1ad)
+	outer_proto = ETH_P_8021AD;
 
       LCP_IF_INFO ("pair_create: creating dot1%s %d inner-dot1q %d on %U",
 		   sw->sub.eth.flags.dot1ad ? "ad" : "q", outer_vlan,
@@ -891,7 +905,7 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
 				"vlan %d proto %s on %U",
 				outer_vlan,
 				outer_proto == ETH_P_8021AD ? "dot1ad" :
-								    "dot1q",
+							      "dot1q",
 				format_vnet_sw_if_index_name, vnet_get_main (),
 				hw->sw_if_index);
 		  return VNET_API_ERROR_INVALID_SW_IF_INDEX;
@@ -916,13 +930,14 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
 
 	  err = lcp_netlink_add_link_vlan (parent_vif_index, vlan, proto,
 					   (const char *) host_if_name);
-	  if (err != 0) {
+	  if (err != 0)
+	    {
 	      LCP_IF_ERROR ("pair_create: Cannot create link "
 			    "outer(proto:0x%04x,vlan:%u).inner(proto:0x%"
 			    "04x,vlan:%u) name:'%s'",
 			    outer_proto, outer_vlan, inner_proto, inner_vlan,
 			    host_if_name);
-	  }
+	    }
 
 	  if (!err)
 	    vif_index = if_nametoindex ((char *) host_if_name);
@@ -1190,12 +1205,12 @@ VNET_HW_INTERFACE_LINK_UP_DOWN_FUNCTION (lcp_itf_pair_link_up_down);
 static clib_error_t *
 lcp_itf_pair_init (vlib_main_t *vm)
 {
-  vlib_punt_hdl_t punt_hdl = vlib_punt_client_register("linux-cp");
+  vlib_punt_hdl_t punt_hdl = vlib_punt_client_register ("linux-cp");
   lcp_itf_pair_logger = vlib_log_register_class ("linux-cp", "if");
 
   /* punt IKE */
-  vlib_punt_register(punt_hdl, ipsec_punt_reason[IPSEC_PUNT_IP4_SPI_UDP_0],
-                     "linux-cp-punt");
+  vlib_punt_register (punt_hdl, ipsec_punt_reason[IPSEC_PUNT_IP4_SPI_UDP_0],
+		      "linux-cp-punt");
 
   /* punt all unknown ports */
   udp_punt_unknown (vm, 0, 1);
