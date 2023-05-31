@@ -170,7 +170,7 @@ lcp_itf_pair_sync_state_hw (vnet_hw_interface_t *hi)
 }
 
 static clib_error_t *
-lcp_itf_admin_state_change (vnet_main_t * vnm, u32 sw_if_index, u32 flags)
+lcp_itf_admin_state_change (vnet_main_t *vnm, u32 sw_if_index, u32 flags)
 {
   lcp_itf_pair_t *lip;
   vnet_hw_interface_t *hi;
@@ -184,7 +184,8 @@ lcp_itf_admin_state_change (vnet_main_t * vnm, u32 sw_if_index, u32 flags)
 
   // Sync interface state changes into host
   lip = lcp_itf_pair_get (lcp_itf_pair_find_by_phy (sw_if_index));
-  if (!lip) return NULL;
+  if (!lip)
+    return NULL;
   LCP_IF_INFO ("admin_state_change: %U flags %u", format_lcp_itf_pair, lip,
 	       flags);
 
@@ -213,9 +214,9 @@ lcp_itf_admin_state_change (vnet_main_t * vnm, u32 sw_if_index, u32 flags)
   lcp_itf_pair_sync_state_hw (hi);
 
   return NULL;
-}   
+}
 
-VNET_SW_INTERFACE_ADMIN_UP_DOWN_FUNCTION(lcp_itf_admin_state_change);
+VNET_SW_INTERFACE_ADMIN_UP_DOWN_FUNCTION (lcp_itf_admin_state_change);
 
 static clib_error_t *
 lcp_itf_mtu_change (vnet_main_t *vnm, u32 sw_if_index, u32 flags)

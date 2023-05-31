@@ -30,7 +30,7 @@ autoreply define lcp_default_ns_set
 {
   u32 client_index;
   u32 context;
-  string netns[32];		/* LCP_NS_LEN */
+  string netns[32]; /* LCP_NS_LEN */
 };
 
 /** \brief get the default Linux Control Plane netns
@@ -51,7 +51,7 @@ define lcp_default_ns_get
 define lcp_default_ns_get_reply
 {
   u32 context;
-  string netns[32];		/* LCP_NS_LEN */
+  string netns[32]; /* LCP_NS_LEN */
 };
 
 enum lcp_itf_host_type : u8
@@ -75,9 +75,9 @@ autoreply autoendian define lcp_itf_pair_add_del
   u32 context;
   bool is_add;
   vl_api_interface_index_t sw_if_index;
-  string host_if_name[16];		/* IFNAMSIZ */
+  string host_if_name[16]; /* IFNAMSIZ */
   vl_api_lcp_itf_host_type_t host_if_type;
-  string netns[32];			/* LCP_NS_LEN */
+  string netns[32]; /* LCP_NS_LEN */
 };
 autoendian define lcp_itf_pair_add_del_v2
 {
@@ -85,9 +85,9 @@ autoendian define lcp_itf_pair_add_del_v2
   u32 context;
   bool is_add;
   vl_api_interface_index_t sw_if_index;
-  string host_if_name[16];		/* IFNAMSIZ */
+  string host_if_name[16]; /* IFNAMSIZ */
   vl_api_lcp_itf_host_type_t host_if_type;
-  string netns[32];			/* LCP_NS_LEN */
+  string netns[32]; /* LCP_NS_LEN */
 };
 define lcp_itf_pair_add_del_v2_reply
 {
@@ -129,14 +129,15 @@ autoendian define lcp_itf_pair_details
   vl_api_interface_index_t phy_sw_if_index;
   vl_api_interface_index_t host_sw_if_index;
   u32 vif_index;
-  string host_if_name[16];	/* IFNAMSIZ */
+  string host_if_name[16]; /* IFNAMSIZ */
   vl_api_lcp_itf_host_type_t host_if_type;
-  string netns[32];		/* LCP_NS_LEN */
+  string netns[32]; /* LCP_NS_LEN */
 };
 
-service {
-  rpc lcp_itf_pair_get returns lcp_itf_pair_get_reply
-    stream lcp_itf_pair_details;
+service
+{
+  rpc lcp_itf_pair_get returns lcp_itf_pair_get_reply stream
+    lcp_itf_pair_details;
 };
 
 /** \brief Replace end/begin
@@ -155,14 +156,17 @@ autoreply define lcp_itf_pair_replace_end
 /*
  * Linux-CP Error counters/messages
  */
-counters linuxcp {
-  packets {
+counters linuxcp
+{
+  packets
+  {
     severity info;
     type counter64;
     units "packets";
     description "ARP packets processed";
   };
-  copies {
+  copies
+  {
     severity info;
     type counter64;
     units "packets";
@@ -170,9 +174,12 @@ counters linuxcp {
   };
 };
 
-paths {
-  "/err/linux-cp-arp-phy" "linuxcp";
-  "/err/linux-cp-arp-host" "linuxcp";
+paths
+{
+  "/err/linux-cp-arp-phy"
+  "linuxcp";
+  "/err/linux-cp-arp-host"
+  "linuxcp";
 };
 
 /*

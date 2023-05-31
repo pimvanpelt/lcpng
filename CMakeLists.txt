@@ -29,6 +29,7 @@ add_vpp_library(lcpng
   lcpng_interface.c
   lcpng_adj.c
   lcpng_if_sync.c
+  lcpng_mpls_sync.c
   lcpng.c
 
   LINK_LIBRARIES

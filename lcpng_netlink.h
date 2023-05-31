@@ -22,6 +22,7 @@
 #include <netlink/route/link.h>
 #include <netlink/route/route.h>
 #include <netlink/route/neighbour.h>
+#include <netlink/route/nexthop.h>
 #include <netlink/route/addr.h>
 #include <netlink/route/link/vlan.h>
 
