@@ -56,6 +56,8 @@ column shows changes in LInux that are copied into VPP.
 | Add/Del QinQ   | ✅            | ✅            |
 | Add/Del QinAD  | ✅            | ✅            |
 | Add/Del BondEthernet  | ✅     | 🟠            |
+| MPLS P         | 🟠            | ✅            |
+| MPLS P/E       | 🟠            | ✅            |
 
 Legend: ✅=supported; 🟠=maybe; ❌=infeasible.
 
@@ -133,31 +135,52 @@ linux-cp/if          [debug ]: mtu_change: sw TwentyFiveGigabitEthernete/0/1 0
 DBGvpp# 
 ```
 
+### Notes on MPLS (May 2023)
 
-### Pinging BondEthernet
+The MPLS plugin is documented in the 4 VPP [[MPLS articles](https://ipng.ch/s/articles/)] on IPng's website.
 
-Interesting packetloss and latency increase seen on the BondEthernet0 interfaces (`10.1.*.2`)
-versus TenGigabitEthernet (`10.0.*.2`) interfaces:
+Currently, P-router (MPLS forwarding, SWAP, EOS and NEOS) is fully implemented. For P/E, encapsulating MPLS
+packets based on destination IPv4 and IPv6 prefixes works. In Netlink messages, all MPLS and IPv4/IPv6 encapsulation
+messages are handled correctly.
+
+The netlink handler for MPLS encapsulated IPv4/IPv6 routes requires at least `libnl3` version 3.6. Debian Bullseye
+ships with version 3.4.0. It's advised to compile `libnl3` version 3.7.0 from Debian Bookworm. VPP will run with
+the older `libnl3` version, but it will not install routes in the FIB.
+
+***NOTE*** this is not required for Debian Bookworm which ships with 3.7.0 already.
+
+Quick build howto (for Debian Bullseye):
 ```
-10.1.1.2        : xmt/rcv/%loss = 30000/29833/0%, min/avg/max = 0.11/0.50/10.6
-10.1.2.2        : xmt/rcv/%loss = 30000/29856/0%, min/avg/max = 0.10/0.50/10.8
-10.1.3.2        : xmt/rcv/%loss = 30000/29851/0%, min/avg/max = 0.10/0.51/10.7
-10.1.4.2        : xmt/rcv/%loss = 30000/29848/0%, min/avg/max = 0.12/0.51/10.8
-10.1.5.2        : xmt/rcv/%loss = 30000/29841/0%, min/avg/max = 0.11/0.51/11.7
-10.0.1.2        : xmt/rcv/%loss = 30000/30000/0%, min/avg/max = 0.09/0.21/40.4
-10.0.2.2        : xmt/rcv/%loss = 30000/30000/0%, min/avg/max = 0.10/0.21/30.4
-10.0.3.2        : xmt/rcv/%loss = 30000/30000/0%, min/avg/max = 0.10/0.19/20.4
-10.0.4.2        : xmt/rcv/%loss = 30000/30000/0%, min/avg/max = 0.10/0.18/10.3
-10.0.5.2        : xmt/rcv/%loss = 30000/30000/0%, min/avg/max = 0.10/0.19/8.50
-2001:db8:1:1::2 : xmt/rcv/%loss = 30000/29853/0%, min/avg/max = 0.12/0.52/10.7
-2001:db8:1:2::2 : xmt/rcv/%loss = 30000/29870/0%, min/avg/max = 0.08/0.56/10.9
-2001:db8:1:3::2 : xmt/rcv/%loss = 30000/29857/0%, min/avg/max = 0.11/0.52/11.1
-2001:db8:1:4::2 : xmt/rcv/%loss = 30000/29866/0%, min/avg/max = 0.11/0.56/10.9
-2001:db8:1:5::2 : xmt/rcv/%loss = 30000/29864/0%, min/avg/max = 0.10/0.57/11.1
-2001:db8:0:1::2 : xmt/rcv/%loss = 30000/30000/0%, min/avg/max = 0.10/0.23/8.33
-2001:db8:0:2::2 : xmt/rcv/%loss = 30000/30000/0%, min/avg/max = 0.10/0.21/8.27
-2001:db8:0:3::2 : xmt/rcv/%loss = 30000/30000/0%, min/avg/max = 0.10/0.20/8.20
-2001:db8:0:4::2 : xmt/rcv/%loss = 30000/29999/0%, min/avg/max = 0.11/0.19/8.49
-2001:db8:0:5::2 : xmt/rcv/%loss = 30000/29999/0%, min/avg/max = 0.10/0.19/8.46
+mkdir -p ~/dist ~/src/libnl/
+cd ~/src/libnl/
+wget http://deb.debian.org/debian/pool/main/libn/libnl3/libnl3_3.7.0.orig.tar.gz
+wget http://deb.debian.org/debian/pool/main/libn/libnl3/libnl3_3.7.0-0.2.debian.tar.xz
+
+tar xzf libnl3_3.7.0.orig.tar.gz
+cd libnl-3.7.0
+tar xf libnl3_3.7.0-0.2.debian.tar.xz
+
+sudo apt install dpkg-dev debhelper dh-exec cdbs bison flex automake autoconf dh-autoreconf pkg-config
+sudo dpkg-buildpackage -b -uc -us
+
+cd ~/src/libnl/
+cp libnl-3-200_3.7.0-0.2_amd64.deb libnl-3-dev_3.7.0-0.2_amd64.deb libnl-genl-3-200_3.7.0-0.2_amd64.deb \
+   libnl-route-3-200_3.7.0-0.2_amd64.deb libnl-route-3-dev_3.7.0-0.2_amd64.deb ~/dist
 ```
 
+This will yield the following Debian compatible `libnl3` packages. 
+
+```
+pim@bullseye-builder:~/src/libnl$ dpkg -l | grep libnl
+ii  libnl-3-200:amd64                3.7.0-0.2                      amd64        library for dealing with netlink sockets
+ii  libnl-3-dev:amd64                3.7.0-0.2                      amd64        development library and headers for libnl-3
+ii  libnl-genl-3-200:amd64           3.7.0-0.2                      amd64        library for dealing with netlink sockets - generic netlink
+ii  libnl-route-3-200:amd64          3.7.0-0.2                      amd64        library for dealing with netlink sockets - route interface
+ii  libnl-route-3-dev:amd64          3.7.0-0.2                      amd64        development library and headers for libnl-route-3
+```
+
+Of course, don't forget to load the `mpls_router` kernel module and allow for the Linux Controlplane side
+to create MPLS labels:
+```
+ip netns exec dataplane sysctl -w net.mpls.platform_labels=65535
+```
