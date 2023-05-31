@@ -147,7 +147,7 @@ The netlink handler for MPLS encapsulated IPv4/IPv6 routes requires at least `li
 ships with version 3.4.0. It's advised to compile `libnl3` version 3.7.0 from Debian Bookworm. VPP will run with
 the older `libnl3` version, but it will not install routes in the FIB.
 
-***NOTE*** this is not required for Debian Bookworm which ships with 3.7.0 already.
+***NOTE***: this is not required for Debian Bookworm which ships with 3.7.0 already.
 
 Quick build howto (for Debian Bullseye):
 ```
@@ -160,23 +160,25 @@ tar xzf libnl3_3.7.0.orig.tar.gz
 cd libnl-3.7.0
 tar xf libnl3_3.7.0-0.2.debian.tar.xz
 
-sudo apt install dpkg-dev debhelper dh-exec cdbs bison flex automake autoconf dh-autoreconf pkg-config
+sudo apt install dpkg-dev debhelper dh-exec cdbs bison flex automake autoconf \
+  dh-autoreconf pkg-config
 sudo dpkg-buildpackage -b -uc -us
 
 cd ~/src/libnl/
-cp libnl-3-200_3.7.0-0.2_amd64.deb libnl-3-dev_3.7.0-0.2_amd64.deb libnl-genl-3-200_3.7.0-0.2_amd64.deb \
-   libnl-route-3-200_3.7.0-0.2_amd64.deb libnl-route-3-dev_3.7.0-0.2_amd64.deb ~/dist
+cp libnl-3-200_3.7.0-0.2_amd64.deb libnl-3-dev_3.7.0-0.2_amd64.deb \
+  libnl-genl-3-200_3.7.0-0.2_amd64.deb libnl-route-3-200_3.7.0-0.2_amd64.deb \
+  libnl-route-3-dev_3.7.0-0.2_amd64.deb ~/dist
 ```
 
 This will yield the following Debian compatible `libnl3` packages. 
 
 ```
 pim@bullseye-builder:~/src/libnl$ dpkg -l | grep libnl
-ii  libnl-3-200:amd64                3.7.0-0.2                      amd64        library for dealing with netlink sockets
-ii  libnl-3-dev:amd64                3.7.0-0.2                      amd64        development library and headers for libnl-3
-ii  libnl-genl-3-200:amd64           3.7.0-0.2                      amd64        library for dealing with netlink sockets - generic netlink
-ii  libnl-route-3-200:amd64          3.7.0-0.2                      amd64        library for dealing with netlink sockets - route interface
-ii  libnl-route-3-dev:amd64          3.7.0-0.2                      amd64        development library and headers for libnl-route-3
+ii  libnl-3-200:amd64         3.7.0-0.2   amd64   library for dealing with netlink sockets
+ii  libnl-3-dev:amd64         3.7.0-0.2   amd64   development library and headers for libnl-3
+ii  libnl-genl-3-200:amd64    3.7.0-0.2   amd64   library for dealing with netlink sockets - generic netlink
+ii  libnl-route-3-200:amd64   3.7.0-0.2   amd64   library for dealing with netlink sockets - route interface
+ii  libnl-route-3-dev:amd64   3.7.0-0.2   amd64   development library and headers for libnl-route-3
 ```
 
 Of course, don't forget to load the `mpls_router` kernel module and allow for the Linux Controlplane side
