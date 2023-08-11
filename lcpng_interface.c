@@ -483,7 +483,7 @@ lcp_itf_pair_delete_by_index (index_t lipi)
   lip = lcp_itf_pair_get (lipi);
 
   host_name = vec_dup (lip->lip_host_name);
-  ns = vec_dup ((const char *) lip->lip_namespace);
+  ns = vec_dup (lip->lip_namespace);
   host_sw_if_index = lip->lip_host_sw_if_index;
 
   lcp_itf_pair_del (lip->lip_phy_sw_if_index);
