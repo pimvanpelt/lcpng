@@ -516,7 +516,7 @@ lcp_itf_pair_delete_by_index (index_t lipi)
     tap_delete_if (vlib_get_main (), host_sw_if_index);
 
   vec_free (host_name);
-  free (ns);
+  vec_free (ns);
 }
 
 int
