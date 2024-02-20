@@ -34,7 +34,9 @@ intend to contribute the plugin back upstream as soon as it's peer reviewed!
 ***Pull Requests and Issues will be immediately closed without warning***
 
 VPP's code lives at [fd.io](https://gerrit.fd.io/r/c/vpp), and this copy is
-shared only for convenience purposes.
+shared only for convenience purposes. If you do require support, you can 
+discuss your case on the VPP Developer mailinglist at vpp-dev@lists.fd.io
+or alternatively you can ask for a commercial support quote at sales@ipng.ch.
 
 ## Functionality
 
