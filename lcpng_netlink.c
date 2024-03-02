@@ -154,6 +154,7 @@ format_nl_object (u8 *s, va_list *args)
       {
 	struct rtnl_link *link = (struct rtnl_link *) obj;
 	struct nl_addr *a;
+	int master;
 	char buf[128];
 	// mac_addr = rtnl_link_get_addr (l);
 	s =
@@ -176,6 +177,10 @@ format_nl_object (u8 *s, va_list *args)
 	rtnl_link_flags2str (rtnl_link_get_flags (link), buf, sizeof (buf));
 	if (buf[0])
 	  s = format (s, " (%s)", buf);
+
+	master = rtnl_link_get_master (link);
+	if (master)
+	  s = format (s, " master %d", master);
 
 	if (rtnl_link_is_vlan (link))
 	  {

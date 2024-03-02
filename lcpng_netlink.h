@@ -25,6 +25,7 @@
 #include <netlink/route/nexthop.h>
 #include <netlink/route/addr.h>
 #include <netlink/route/link/vlan.h>
+#include <netlink/route/link/vrf.h>
 
 #include <vnet/fib/fib_table.h>
 #include <vnet/mfib/mfib_table.h>
@@ -67,15 +68,6 @@ typedef struct lcp_nl_netlink_namespace
   u8 *netns_name;	    // namespace name (can be empty, for 'self')
 } lcp_nl_netlink_namespace_t;
 
-typedef struct lcp_nl_table_t_
-{
-  uint32_t nlt_id;
-  fib_protocol_t nlt_proto;
-  u32 nlt_fib_index;
-  u32 nlt_mfib_index;
-  u32 nlt_refs;
-} lcp_nl_table_t;
-
 typedef struct lcp_nl_main
 {
   vlib_log_class_t nl_logger;
@@ -87,8 +79,6 @@ typedef struct lcp_nl_main
   fib_source_t fib_src; // For static routes set manually
   fib_source_t
     fib_src_dynamic; // For routes set by routing software (Bird, FRR, etc)
-  uword *table_db[FIB_PROTOCOL_MAX];
-  lcp_nl_table_t *table_pool;
 
   u32 rx_buf_size;
   u32 tx_buf_size;

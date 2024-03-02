@@ -18,6 +18,7 @@
 #include <vlib/vlib.h>
 
 #define LCP_NS_LEN 32
+#define LCP_HAVE_VRF_SYNC 1
 
 typedef struct lcp_main_s
 {
