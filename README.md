@@ -160,7 +160,7 @@ wget http://deb.debian.org/debian/pool/main/libn/libnl3/libnl3_3.7.0-0.2.debian.
 
 tar xzf libnl3_3.7.0.orig.tar.gz
 cd libnl-3.7.0
-tar xf libnl3_3.7.0-0.2.debian.tar.xz
+tar xf ../libnl3_3.7.0-0.2.debian.tar.xz
 
 sudo apt install dpkg-dev debhelper dh-exec cdbs bison flex automake autoconf \
   dh-autoreconf pkg-config
