@@ -133,6 +133,8 @@ lcp_itf_pair_show (u32 phy_sw_if_index)
   vlib_cli_output (vm, "lcp lcp-auto-subint %s\n",
 		   lcp_auto_subint () ? "on" : "off");
   vlib_cli_output (vm, "lcp lcp-sync %s\n", lcp_sync () ? "on" : "off");
+  vlib_cli_output (vm, "lcp lcp-sync-unnumbered %s\n",
+		   lcp_sync_unnumbered () ? "on" : "off");
 
   if (phy_sw_if_index == ~0)
     {
@@ -1232,6 +1234,8 @@ lcp_itf_pair_init (vlib_main_t *vm)
   udp_punt_unknown (vm, 1, 1);
   tcp_punt_unknown (vm, 0, 1);
   tcp_punt_unknown (vm, 1, 1);
+
+  lcp_main.lcp_sync_unnumbered = 1;
 
   return NULL;
 }

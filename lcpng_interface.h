@@ -166,6 +166,12 @@ int lcp_auto_subint (void);
 void lcp_set_sync (u8 is_auto);
 int lcp_sync (void);
 
+/**
+ * sync address of unnumbered interfaces from VPP into LCP
+ */
+void lcp_set_sync_unnumbered (u8 is_sync);
+int lcp_sync_unnumbered (void);
+
 typedef void (*lcp_itf_pair_add_cb_t) (lcp_itf_pair_t *);
 typedef void (*lcp_itf_pair_del_cb_t) (lcp_itf_pair_t *);
 

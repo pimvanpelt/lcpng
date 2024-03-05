@@ -26,6 +26,7 @@ typedef struct lcp_main_s
   int default_ns_fd;
   u8 lcp_auto_subint; /* Automatically create/delete LCP sub-interfaces */
   u8 lcp_sync;	      /* Automatically sync VPP changes to LCP */
+  u8 lcp_sync_unnumbered; /* Automatically sync unnumbered interfaces to LCP */
   /* Set when Unit testing */
   u8 test_mode;
 } lcp_main_t;
