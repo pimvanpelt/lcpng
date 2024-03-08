@@ -13,23 +13,21 @@ See previous work:
 *   [netlink listener](https://gerrit.fd.io/r/c/vpp/+/31122)
 
 My work is intended to be re-submitted for review as a cleanup/rewrite of the
-existing Linux CP interface mirror and netlink syncer. 
+existing Linux CP interface mirror and netlink syncer. I will use this repo
+to make rapid prototyping progress, sometimes with other software engineers.
 
 Follow along on [my blog](https://ipng.ch/s/articles/) for my findings while
-I work towards a completed plugin that can copy VPP configuration into Linux
-interfaces, and copy Linux configuration changes into VPP (ie. a fully
-bidirectional pipe between Linux and VPP).
-
-When the code is complete, this plugin should be able to work seamlessly with
-a higher level controlplane like [FRR](https://frrouting.org/) or
-[Bird](https://bird.network.cz/), for example as a BGP/OSPF speaking ISP router.
+I work towards feature completion. When the code is complete, this plugin should
+be able to work seamlessly with a higher level controlplane like [FRR](https://frrouting.org/)
+or [Bird](https://bird.network.cz/), for example as a BGP/OSPF speaking ISP router.
 
 ## WARNING!!
 
 The only reason that this code is here, is so that I can make some progress
 iterating on the Linux CP plugin, and share my findings with some interested
 folks. The goal is NOT to use this plugin anywhere other than a bench. I
-intend to contribute the plugin back upstream as soon as it's peer reviewed!
+intend to contribute any changes submitted to this copy of the plugin back
+upstream as soon as they have had some mileage and peer review!
 
 ***Pull Requests and Issues will be immediately closed without warning***
 
