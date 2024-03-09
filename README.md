@@ -23,7 +23,9 @@ or [Bird](https://bird.network.cz/), for example as a BGP/OSPF speaking ISP rout
 
 ## WARNING!!
 
-The only reason that this code is here, is so that I can make some progress
+Users should use the `linux-cp` plugin that natively ships with VPP since 2022.
+
+The only reason that this code is still here, is so that I can make some progress
 iterating on the Linux CP plugin, and share my findings with some interested
 folks. The goal is NOT to use this plugin anywhere other than a bench. I
 intend to contribute any changes submitted to this copy of the plugin back
