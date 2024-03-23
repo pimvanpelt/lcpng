@@ -1149,7 +1149,7 @@ lcp_nl_neigh_add (struct rtnl_neigh *rn)
 
   if ((rna = rtnl_neigh_get_dst (rn)) == NULL)
     {
-      LCP_NL_DBG ("neigh_del: ignore missing neighbor %U", format_nl_object,
+      LCP_NL_DBG ("neigh_add: ignore missing neighbor %U", format_nl_object,
 		  rn);
       return;
     }
