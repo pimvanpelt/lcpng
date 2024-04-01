@@ -552,6 +552,7 @@ static clib_error_t *
 lcp_itf_pair_config (vlib_main_t *vm, unformat_input_t *input)
 {
   u8 *default_ns;
+  u32 tmp;
 
   default_ns = NULL;
 
@@ -571,6 +572,10 @@ lcp_itf_pair_config (vlib_main_t *vm, unformat_input_t *input)
 	lcp_set_auto_subint (1 /* is_auto */);
       else if (unformat (input, "lcp-sync"))
 	lcp_set_sync (1 /* is_auto */);
+      else if (unformat (input, "num-rx-queues %d", &tmp))
+	lcp_set_default_num_queues (tmp, 0 /* is_tx */);
+      else if (unformat (input, "num-tx-queues %d", &tmp))
+	lcp_set_default_num_queues (tmp, 1 /* is_tx */);
       else
 	return clib_error_return (0, "unknown input `%U'",
 				  format_unformat_error, input);
@@ -993,8 +998,10 @@ lcp_itf_pair_create (u32 phy_sw_if_index, u8 *host_if_name,
   else
     {
       tap_create_if_args_t args = {
-	.num_rx_queues = clib_max (1, vlib_num_workers ()),
-	.num_tx_queues = 1,
+	.num_rx_queues =
+	  clib_max (1, lcp_get_default_num_queues (0 /* is_tx */)),
+	.num_tx_queues =
+	  clib_max (1, lcp_get_default_num_queues (1 /* is_tx */)),
 	.id = ~0,
 	.sw_if_index = ~0,
 	.rx_ring_sz = 256,

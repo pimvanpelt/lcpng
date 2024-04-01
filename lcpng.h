@@ -27,6 +27,8 @@ typedef struct lcp_main_s
   u8 lcp_auto_subint; /* Automatically create/delete LCP sub-interfaces */
   u8 lcp_sync;	      /* Automatically sync VPP changes to LCP */
   u8 lcp_sync_unnumbered; /* Automatically sync unnumbered interfaces to LCP */
+  u16 num_rx_queues;
+  u16 num_tx_queues;
   /* Set when Unit testing */
   u8 test_mode;
 } lcp_main_t;
@@ -40,10 +42,16 @@ int lcp_set_default_ns (u8 *ns);
 u8 *lcp_get_default_ns (void); /* Returns NULL or shared string */
 int lcp_get_default_ns_fd (void);
 
-/*
+/**
  * Sync state from VPP into all LCP devices
  */
 void lcp_itf_pair_sync_state_all ();
+
+/**
+ * Get/Set the default queue number for LCP host taps.
+ */
+void lcp_set_default_num_queues (u16 num_queues, u8 is_tx);
+u16 lcp_get_default_num_queues (u8 is_tx);
 
 #endif
 
