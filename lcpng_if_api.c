@@ -133,11 +133,11 @@ send_lcp_itf_pair_details (index_t lipi, vl_api_registration_t *rp,
   vl_api_lcp_itf_pair_details_t *rmp;
   lcp_itf_pair_t *lcp_pair = lcp_itf_pair_get (lipi);
 
-  REPLY_MACRO_DETAILS4 (
+  REPLY_MACRO_DETAILS4_END (
     VL_API_LCP_ITF_PAIR_DETAILS, rp, context, ({
-      rmp->phy_sw_if_index = ntohl (lcp_pair->lip_phy_sw_if_index);
-      rmp->host_sw_if_index = ntohl (lcp_pair->lip_host_sw_if_index);
-      rmp->vif_index = ntohl (lcp_pair->lip_vif_index);
+      rmp->phy_sw_if_index = lcp_pair->lip_phy_sw_if_index;
+      rmp->host_sw_if_index = lcp_pair->lip_host_sw_if_index;
+      rmp->vif_index = lcp_pair->lip_vif_index;
       rmp->host_if_type = api_encode_host_type (lcp_pair->lip_host_type);
 
       memcpy_s (rmp->host_if_name, sizeof (rmp->host_if_name),
@@ -156,9 +156,42 @@ vl_api_lcp_itf_pair_get_t_handler (vl_api_lcp_itf_pair_get_t *mp)
   vl_api_lcp_itf_pair_get_reply_t *rmp;
   i32 rv = 0;
 
-  REPLY_AND_DETAILS_MACRO (
+  REPLY_AND_DETAILS_MACRO_END (
     VL_API_LCP_ITF_PAIR_GET_REPLY, lcp_itf_pair_pool,
     ({ send_lcp_itf_pair_details (cursor, rp, mp->context); }));
+}
+
+static void
+vl_api_lcp_itf_pair_get_v2_t_handler (vl_api_lcp_itf_pair_get_v2_t *mp)
+{
+  vl_api_lcp_itf_pair_get_v2_reply_t *rmp;
+  i32 rv = 0;
+
+  if (mp->sw_if_index == ~0)
+    {
+      // Does this actually work?
+      REPLY_AND_DETAILS_MACRO_END (
+	VL_API_LCP_ITF_PAIR_GET_REPLY, lcp_itf_pair_pool,
+	({ send_lcp_itf_pair_details (cursor, rp, mp->context); }));
+    }
+  else
+    {
+      VALIDATE_SW_IF_INDEX_END (mp);
+
+      u32 pair_index = lcp_itf_pair_find_by_phy (mp->sw_if_index);
+      if (pair_index == INDEX_INVALID)
+	{
+	  rv = VNET_API_ERROR_INVALID_SW_IF_INDEX;
+	  goto bad_sw_if_index;
+	}
+      send_lcp_itf_pair_details (
+	pair_index, vl_api_client_index_to_registration (mp->client_index),
+	mp->context);
+
+      BAD_SW_IF_INDEX_LABEL;
+      REPLY_MACRO2_END (VL_API_LCP_ITF_PAIR_GET_V2_REPLY,
+			({ rmp->cursor = ~0; }));
+    }
 }
 
 static void
